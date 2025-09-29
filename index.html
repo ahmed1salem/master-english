@@ -55,6 +55,14 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        
+        .modal {
+            animation: fadeInModal 0.3s ease-out;
+        }
+        @keyframes fadeInModal {
+             from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
 
         /* Styles for printable reports */
         @media print {
@@ -73,7 +81,7 @@
     </div>
 
     <!-- Auth Screen (Login/Signup) -->
-    <div id="auth-container" class="fixed inset-0 bg-gray-200 flex justify-center items-center z-50">
+    <div id="auth-container" class="fixed inset-0 bg-gray-200 flex justify-center items-center z-50 p-4">
         <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl transform transition-all">
             <div class="text-center mb-6">
                 <h1 class="text-3xl font-bold text-gray-800" data-translate="center_name">Master English</h1>
@@ -142,6 +150,9 @@
 
     <!-- Main App Container -->
     <div id="app-container" class="relative min-h-screen md:flex hidden">
+        
+        <!-- Overlay for mobile sidebar -->
+        <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden hidden"></div>
 
         <!-- Sidebar Navigation -->
         <nav id="sidebar" class="bg-gray-800 text-white w-64 p-4 flex-shrink-0 flex flex-col no-print fixed md:relative h-full z-20 transform -translate-x-full md:translate-x-0">
@@ -221,12 +232,12 @@
         // <<<--- ألصق كود إعدادات Firebase الخاص بك هنا --->>>
         //
         const firebaseConfig = {
-            apiKey: "AIzaSyBWqms4OWqtLvWCXZ7y7wysqUcj-mpd6fI",
-            authDomain: "master-english-center.firebaseapp.com",
-            projectId: "master-english-center",
-            storageBucket: "master-english-center.appspot.com",
-            messagingSenderId: "945826515359",
-            appId: "1:945826515359:web:57f21b2345dcc56ff2d5aa"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
         // <<<--- نهاية منطقة لصق الكود --->>>
         //
@@ -330,9 +341,20 @@
             document.getElementById('login-form').addEventListener('submit', handleLogin);
             document.getElementById('signup-form').addEventListener('submit', handleSignup);
             
-            // Mobile menu
-            document.getElementById('menu-button').addEventListener('click', () => {
-                document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            // Mobile Menu & Overlay Logic
+            const menuButton = document.getElementById('menu-button');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+
+            menuButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                sidebar.classList.toggle('-translate-x-full');
+                overlay.classList.toggle('hidden');
+            });
+
+            overlay.addEventListener('click', () => {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
             });
         });
 
@@ -555,34 +577,18 @@
 
             switch(pageId) {
                 case 'dashboard':
-                    pageContent.innerHTML = `<div id="dashboard-page" class="page"></div>`;
                     renderDashboardPage();
                     break;
                 case 'requests':
-                    if (isAdmin) {
-                         pageContent.innerHTML = `
-                            <div id="requests" class="page">
-                                <h2 class="text-3xl font-bold mb-6">طلبات التسجيل</h2>
-                                <div id="requests-list" class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-                                    <p>جاري تحميل الطلبات...</p>
-                                </div>
-                            </div>`;
-                    }
+                    if (isAdmin) renderRequestsPage();
                     break;
                 case 'students':
-                    if (isAdmin) {
-                        pageContent.innerHTML = `<div id="students-page" class="page"></div>`;
-                        renderStudentsPageContent();
-                    }
+                    if (isAdmin) renderStudentsPageContent();
                     break;
                 case 'teachers':
-                     if (isAdmin) {
-                        pageContent.innerHTML = `<div id="teachers-page" class="page"></div>`;
-                        renderTeachersPageContent();
-                    }
+                     if (isAdmin) renderTeachersPageContent();
                     break;
                 case 'groups':
-                    pageContent.innerHTML = `<div id="groups-page" class="page"></div>`;
                     renderGroupsPageContent();
                     break;
                 // Add other pages here
@@ -590,47 +596,47 @@
                     pageContent.innerHTML = `<div class="page"><h2 class="text-3xl font-bold mb-6">${pageId}</h2><p>هذه الصفحة تحت الإنشاء.</p></div>`;
             }
             
+            // Close mobile sidebar on navigation
             if (window.innerWidth < 768) {
                 document.getElementById('sidebar').classList.add('-translate-x-full');
+                document.getElementById('sidebar-overlay').classList.add('hidden');
             }
         }
         
         // --- PAGE CONTENT RENDERERS ---
 
         function renderDashboardPage() {
-            const container = document.getElementById('dashboard-page');
-            if (!container) return;
-
+            const container = document.getElementById('page-content');
             const today = new Date().toISOString().slice(0, 10);
             const todayAttendance = appData.attendance.filter(a => a.timestamp?.toDate().toISOString().slice(0, 10) === today).length;
 
             container.innerHTML = `
-                <h2 class="text-3xl font-bold mb-6">الرئيسية</h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                        <h3 class="text-lg font-semibold text-gray-600">إجمالي الطلاب</h3>
-                        <p class="text-4xl font-bold mt-2">${appData.students.length}</p>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                        <h3 class="text-lg font-semibold text-gray-600">إجمالي المجموعات</h3>
-                        <p class="text-4xl font-bold mt-2">${appData.groups.length}</p>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                        <h3 class="text-lg font-semibold text-gray-600">إجمالي المدرسين</h3>
-                        <p class="text-4xl font-bold mt-2">${currentUserData.role === 'admin' ? appData.teachers.length : 'N/A'}</p>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                        <h3 class="text-lg font-semibold text-gray-600">الحضور اليوم</h3>
-                        <p class="text-4xl font-bold mt-2">${todayAttendance}</p>
+                <div id="dashboard-page" class="page">
+                    <h2 class="text-3xl font-bold mb-6">الرئيسية</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-lg font-semibold text-gray-600">إجمالي الطلاب</h3>
+                            <p class="text-4xl font-bold mt-2">${appData.students.length}</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-lg font-semibold text-gray-600">إجمالي المجموعات</h3>
+                            <p class="text-4xl font-bold mt-2">${appData.groups.length}</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-lg font-semibold text-gray-600">إجمالي المدرسين</h3>
+                            <p class="text-4xl font-bold mt-2">${currentUserData.role === 'admin' ? appData.teachers.length : 'N/A'}</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-lg font-semibold text-gray-600">الحضور اليوم</h3>
+                            <p class="text-4xl font-bold mt-2">${todayAttendance}</p>
+                        </div>
                     </div>
                 </div>
             `;
         }
 
         function renderStudentsPageContent() {
-            const container = document.getElementById('students-page');
-            if (!container) return;
-            
+            const container = document.getElementById('page-content');
             let tableRows = '';
             appData.students.forEach(student => {
                 const group = appData.groups.find(g => g.id === student.groupId);
@@ -642,38 +648,38 @@
                         <td class="py-2 px-4">${student.phone}</td>
                         <td class="py-2 px-4">${group?.name || 'غير مسجل'}</td>
                         <td class="py-2 px-4 space-x-2 space-x-reverse">
-                            <button class="text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
-                            <button class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                            <button onclick="openStudentModal('${student.id}')" class="text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
+                            <button onclick="deleteStudent('${student.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
                         </td>
                     </tr>
                 `;
             });
 
             container.innerHTML = `
-                <h2 class="text-3xl font-bold mb-6">إدارة الطلاب</h2>
-                <button class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 mb-4"><i class="fas fa-plus mr-2"></i> إضافة طالب جديد</button>
-                <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-                    <table class="min-w-full bg-white">
-                        <thead class="bg-gray-800 text-white">
-                            <tr>
-                                <th class="py-3 px-4 text-right">الكود</th>
-                                <th class="py-3 px-4 text-right">الاسم</th>
-                                <th class="py-3 px-4 text-right">المرحلة</th>
-                                <th class="py-3 px-4 text-right">الهاتف</th>
-                                <th class="py-3 px-4 text-right">المجموعة</th>
-                                <th class="py-3 px-4 text-right">إجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody>${tableRows}</tbody>
-                    </table>
+                <div id="students-page" class="page">
+                    <h2 class="text-3xl font-bold mb-6">إدارة الطلاب</h2>
+                    <button onclick="openStudentModal()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 mb-4"><i class="fas fa-plus mr-2"></i> إضافة طالب جديد</button>
+                    <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-800 text-white">
+                                <tr>
+                                    <th class="py-3 px-4 text-right">الكود</th>
+                                    <th class="py-3 px-4 text-right">الاسم</th>
+                                    <th class="py-3 px-4 text-right">المرحلة</th>
+                                    <th class="py-3 px-4 text-right">الهاتف</th>
+                                    <th class="py-3 px-4 text-right">المجموعة</th>
+                                    <th class="py-3 px-4 text-right">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>${tableRows}</tbody>
+                        </table>
+                    </div>
                 </div>
             `;
         }
         
         function renderTeachersPageContent() {
-            const container = document.getElementById('teachers-page');
-            if (!container) return;
-
+            const container = document.getElementById('page-content');
             let tableRows = '';
             appData.teachers.forEach(teacher => {
                 tableRows += `
@@ -682,38 +688,39 @@
                         <td class="py-2 px-4">${teacher.subject}</td>
                         <td class="py-2 px-4">${teacher.phone || 'N/A'}</td>
                         <td class="py-2 px-4 space-x-2 space-x-reverse">
-                            <button class="text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
-                            <button class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                            <button onclick="openTeacherModal('${teacher.id}')" class="text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
+                            <button onclick="deleteTeacher('${teacher.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
                         </td>
                     </tr>
                 `;
             });
 
             container.innerHTML = `
-                 <h2 class="text-3xl font-bold mb-6">إدارة المدرسين</h2>
-                <button class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 mb-4"><i class="fas fa-plus mr-2"></i> إضافة مدرس جديد</button>
-                <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-                    <table class="min-w-full bg-white">
-                        <thead class="bg-gray-800 text-white">
-                            <tr>
-                                <th class="py-3 px-4 text-right">الاسم</th>
-                                <th class="py-3 px-4 text-right">المادة</th>
-                                <th class="py-3 px-4 text-right">الهاتف</th>
-                                <th class="py-3 px-4 text-right">إجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody>${tableRows}</tbody>
-                    </table>
+                <div id="teachers-page" class="page">
+                     <h2 class="text-3xl font-bold mb-6">إدارة المدرسين</h2>
+                    <button onclick="openTeacherModal()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 mb-4"><i class="fas fa-plus mr-2"></i> إضافة مدرس جديد</button>
+                    <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-800 text-white">
+                                <tr>
+                                    <th class="py-3 px-4 text-right">الاسم</th>
+                                    <th class="py-3 px-4 text-right">المادة</th>
+                                    <th class="py-3 px-4 text-right">الهاتف</th>
+                                    <th class="py-3 px-4 text-right">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>${tableRows}</tbody>
+                        </table>
+                    </div>
                 </div>
             `;
         }
 
         function renderGroupsPageContent() {
-             const container = document.getElementById('groups-page');
-            if (!container) return;
+            const container = document.getElementById('page-content');
             const isAdmin = currentUserData.role === 'admin';
 
-             let tableRows = '';
+            let tableRows = '';
             appData.groups.forEach(group => {
                 const teacher = appData.teachers.find(t => t.id === group.teacherId);
                 tableRows += `
@@ -724,73 +731,81 @@
                         <td class="py-2 px-4">${group.schedule?.days?.join(', ') || 'N/A'}</td>
                         <td class="py-2 px-4">${group.schedule?.time || 'N/A'}</td>
                         ${isAdmin ? `<td class="py-2 px-4 space-x-2 space-x-reverse">
-                            <button class="text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
-                            <button class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                            <button onclick="openGroupModal('${group.id}')" class="text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
+                            <button onclick="deleteGroup('${group.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
                         </td>` : ''}
                     </tr>
                 `;
             });
 
             container.innerHTML = `
-                <h2 class="text-3xl font-bold mb-6">إدارة المجموعات</h2>
-                ${isAdmin ? `<button class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 mb-4"><i class="fas fa-plus mr-2"></i> إضافة مجموعة جديدة</button>` : ''}
-                <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-                    <table class="min-w-full bg-white">
-                        <thead class="bg-gray-800 text-white">
-                            <tr>
-                                <th class="py-3 px-4 text-right">اسم المجموعة</th>
-                                <th class="py-3 px-4 text-right">المدرس</th>
-                                <th class="py-3 px-4 text-right">السعر</th>
-                                <th class="py-3 px-4 text-right">الأيام</th>
-                                <th class="py-3 px-4 text-right">الساعة</th>
-                                ${isAdmin ? `<th class="py-3 px-4 text-right">إجراءات</th>` : ''}
-                            </tr>
-                        </thead>
-                        <tbody>${tableRows}</tbody>
-                    </table>
+                <div id="groups-page" class="page">
+                    <h2 class="text-3xl font-bold mb-6">إدارة المجموعات</h2>
+                    ${isAdmin ? `<button onclick="openGroupModal()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 mb-4"><i class="fas fa-plus mr-2"></i> إضافة مجموعة جديدة</button>` : ''}
+                    <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-800 text-white">
+                                <tr>
+                                    <th class="py-3 px-4 text-right">اسم المجموعة</th>
+                                    <th class="py-3 px-4 text-right">المدرس</th>
+                                    <th class="py-3 px-4 text-right">السعر</th>
+                                    <th class="py-3 px-4 text-right">الأيام</th>
+                                    <th class="py-3 px-4 text-right">الساعة</th>
+                                    ${isAdmin ? `<th class="py-3 px-4 text-right">إجراءات</th>` : ''}
+                                </tr>
+                            </thead>
+                            <tbody>${tableRows}</tbody>
+                        </table>
+                    </div>
                 </div>
             `;
         }
-
+        
         // --- ADMIN-SPECIFIC FUNCTIONS ---
         function renderRequestsPage(requestDocs) {
-            const container = document.getElementById('requests-list');
+            const container = document.getElementById('page-content');
             if (!container) return;
             
-            if (requestDocs.length === 0) {
-                container.innerHTML = '<p class="text-center text-gray-500">لا توجد طلبات تسجيل حاليًا.</p>';
-                return;
+            let listHtml = '<p class="text-center text-gray-500">لا توجد طلبات تسجيل حاليًا.</p>';
+
+            if (requestDocs && requestDocs.length > 0) {
+                 listHtml = `
+                    <table class="min-w-full bg-white">
+                        <thead class="bg-gray-800 text-white">
+                            <tr>
+                                <th class="py-3 px-4 text-right">الاسم</th>
+                                <th class="py-3 px-4 text-right">البريد الإلكتروني</th>
+                                <th class="py-3 px-4 text-right">تاريخ الطلب</th>
+                                <th class="py-3 px-4 text-right">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+                
+                requestDocs.forEach(doc => {
+                    const request = doc.data();
+                    const requestDate = request.createdAt?.toDate().toLocaleDateString('ar-EG') || 'N/A';
+                    listHtml += `
+                        <tr class="border-b">
+                            <td class="py-2 px-4">${request.name}</td>
+                            <td class="py-2 px-4">${request.email}</td>
+                            <td class="py-2 px-4">${requestDate}</td>
+                            <td class="py-2 px-4 space-x-2 space-x-reverse">
+                                <button onclick="approveUser('${doc.id}', '${request.name}')" class="bg-green-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-green-600">موافقة</button>
+                                <button onclick="rejectUser('${doc.id}')" class="bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600">رفض</button>
+                            </td>
+                        </tr>`;
+                });
+
+                listHtml += '</tbody></table>';
             }
             
-            let tableHtml = `
-                <table class="min-w-full bg-white">
-                    <thead class="bg-gray-800 text-white">
-                        <tr>
-                            <th class="py-3 px-4 text-right">الاسم</th>
-                            <th class="py-3 px-4 text-right">البريد الإلكتروني</th>
-                            <th class="py-3 px-4 text-right">تاريخ الطلب</th>
-                            <th class="py-3 px-4 text-right">إجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
-            
-            requestDocs.forEach(doc => {
-                const request = doc.data();
-                const requestDate = request.createdAt?.toDate().toLocaleDateString('ar-EG') || 'N/A';
-                tableHtml += `
-                    <tr class="border-b">
-                        <td class="py-2 px-4">${request.name}</td>
-                        <td class="py-2 px-4">${request.email}</td>
-                        <td class="py-2 px-4">${requestDate}</td>
-                        <td class="py-2 px-4 space-x-2 space-x-reverse">
-                            <button onclick="approveUser('${doc.id}', '${request.name}')" class="bg-green-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-green-600">موافقة</button>
-                            <button onclick="rejectUser('${doc.id}')" class="bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600">رفض</button>
-                        </td>
-                    </tr>`;
-            });
-
-            tableHtml += '</tbody></table>';
-            container.innerHTML = tableHtml;
+            container.innerHTML = `
+                <div id="requests" class="page">
+                    <h2 class="text-3xl font-bold mb-6">طلبات التسجيل</h2>
+                    <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+                        ${listHtml}
+                    </div>
+                </div>`;
         }
 
         window.approveUser = async function(userId, name) {
@@ -800,17 +815,13 @@
             const teacherCollectionRef = collection(db, "teachers");
 
             try {
-                // Use a batch write to ensure both operations succeed or fail together
                 const batch = writeBatch(db);
-                
-                // 1. Update user's role to 'teacher'
                 batch.update(userDocRef, { role: 'teacher' });
-
-                // 2. Create a new document in the 'teachers' collection
-                const newTeacherRef = doc(teacherCollectionRef); // Auto-generate ID
+                
+                const newTeacherRef = doc(teacherCollectionRef);
                 batch.set(newTeacherRef, {
                     name: name,
-                    userId: userId, // Link to the user account
+                    userId: userId,
                     subject: "Not specified",
                     phone: ""
                 });
@@ -824,7 +835,7 @@
         }
         
         window.rejectUser = async function(userId) {
-            if (!confirm("هل أنت متأكد من رفض وحذف هذا الطلب؟ سيتم حذف بيانات المستخدم من قاعدة البيانات فقط (وليس من نظام المصادقة).")) return;
+            if (!confirm("هل أنت متأكد من رفض وحذف هذا الطلب؟ سيتم حذف بيانات المستخدم من قاعدة البيانات فقط.")) return;
             const userDocRef = doc(db, "users", userId);
             try {
                 await deleteDoc(userDocRef);
@@ -834,7 +845,96 @@
                 alert("حدث خطأ أثناء الرفض.");
             }
         }
+        
+        // --- CRUD Modals & Functions ---
 
+        function renderModal(id, content) {
+            const container = document.getElementById('modals-container');
+            const modalWrapper = document.createElement('div');
+            modalWrapper.id = id;
+            modalWrapper.className = 'fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-40 p-4';
+            modalWrapper.innerHTML = `
+                <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg modal" onclick="event.stopPropagation()">
+                    ${content}
+                </div>
+            `;
+            modalWrapper.addEventListener('click', () => closeModal(id));
+            container.appendChild(modalWrapper);
+        }
+
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            if(modal) modal.remove();
+        }
+        
+        // --- Student CRUD ---
+        window.openStudentModal = function(studentId = null) {
+            const student = studentId ? appData.students.find(s => s.id === studentId) : null;
+            const title = student ? 'تعديل بيانات طالب' : 'إضافة طالب جديد';
+            
+            let groupsOptions = appData.groups.map(g => `<option value="${g.id}" ${student?.groupId === g.id ? 'selected' : ''}>${g.name}</option>`).join('');
+
+            const modalContent = `
+                <h3 class="text-2xl font-bold mb-6">${title}</h3>
+                <form id="student-form">
+                    <input type="hidden" id="student-id-hidden" value="${student?.id || ''}">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="text" id="student-code" placeholder="كود الطالب" class="p-2 border rounded-lg w-full" value="${student?.studentCode || ''}" required>
+                        <input type="text" id="student-name" placeholder="اسم الطالب" class="p-2 border rounded-lg w-full" value="${student?.name || ''}" required>
+                        <input type="text" id="student-grade" placeholder="المرحلة الدراسية" class="p-2 border rounded-lg w-full" value="${student?.grade || ''}" required>
+                        <input type="text" id="student-phone" placeholder="هاتف الطالب" class="p-2 border rounded-lg w-full" value="${student?.phone || ''}" required>
+                        <select id="student-group" class="p-2 border rounded-lg w-full" required>
+                            <option value="">-- اختر المجموعة --</option>
+                            ${groupsOptions}
+                        </select>
+                    </div>
+                    <div class="flex justify-end space-x-4 space-x-reverse mt-6">
+                        <button type="button" onclick="closeModal('student-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إلغاء</button>
+                        <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-lg">حفظ</button>
+                    </div>
+                </form>
+            `;
+            renderModal('student-modal', modalContent);
+            document.getElementById('student-form').onsubmit = handleStudentFormSubmit;
+        }
+
+        async function handleStudentFormSubmit(event) {
+            event.preventDefault();
+            const studentId = document.getElementById('student-id-hidden').value;
+            const studentData = {
+                studentCode: document.getElementById('student-code').value,
+                name: document.getElementById('student-name').value,
+                grade: document.getElementById('student-grade').value,
+                phone: document.getElementById('student-phone').value,
+                groupId: document.getElementById('student-group').value
+            };
+            
+            try {
+                if(studentId) {
+                    await updateDoc(doc(db, "students", studentId), studentData);
+                    alert('تم تحديث بيانات الطالب بنجاح.');
+                } else {
+                    await addDoc(collection(db, "students"), studentData);
+                    alert('تمت إضافة الطالب بنجاح.');
+                }
+                closeModal('student-modal');
+            } catch (error) {
+                console.error("Error saving student:", error);
+                alert("فشل حفظ بيانات الطالب.");
+            }
+        }
+        
+        window.deleteStudent = async function(studentId) {
+            if (!confirm("هل أنت متأكد من حذف هذا الطالب؟ لا يمكن التراجع عن هذا الإجراء.")) return;
+            try {
+                await deleteDoc(doc(db, "students", studentId));
+                alert("تم حذف الطالب بنجاح.");
+            } catch (error) {
+                console.error("Error deleting student:", error);
+                alert("فشل حذف الطالب.");
+            }
+        }
+        
     </script>
 </body>
 </html>
