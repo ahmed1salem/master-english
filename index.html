@@ -1366,37 +1366,8 @@
         function renderPaymentsLogPage() {
             const container = document.getElementById('page-content');
 
-            // Sort payments by creation date descending
-            const sortedPayments = [...appData.payments].sort((a, b) => {
-                const dateA = a.createdAt?.toMillis() || a.timestamp?.toMillis() || 0;
-                const dateB = b.createdAt?.toMillis() || b.timestamp?.toMillis() || 0;
-                return dateB - dateA;
-            });
-
-            let tableRows = sortedPayments.map(p => {
-                const student = appData.students.find(s => s.id === p.studentId);
-                const group = appData.groups.find(g => g.id === p.groupId);
-
-                // Handle old and new data structures for display
-                const paymentDate = p.paymentDate || p.timestamp?.toDate().toLocaleDateString('ar-EG') || 'N/A';
-                const paymentFor = p.paymentForYear ? `${new Date(0, p.paymentForMonth - 1).toLocaleString('ar-EG', { month: 'long' })} ${p.paymentForYear}` : (p.month || 'N/A');
-
-                const amount = Number(p.amount) || 0;
-                return `
-                    <tr class="border-b">
-                        <td class="py-2 px-4">${paymentDate}</td>
-                        <td class="py-2 px-4">${student?.name || 'طالب محذوف'}</td>
-                        <td class="py-2 px-4">${group?.name || 'N/A'}</td>
-                        <td class="py-2 px-4">${amount.toFixed(2)} جنيه</td>
-                        <td class="py-2 px-4">${paymentFor}</td>
-                        <td class="py-2 px-4">${p.notes || ''}</td>
-                        <td class="py-2 px-4 no-print space-x-2 space-x-reverse">
-                            <button onclick="generateInvoice('${p.id}')" class="text-blue-500 hover:text-blue-700" title="طباعة فاتورة"><i class="fas fa-receipt"></i></button>
-                            <button onclick="deletePayment('${p.id}')" class="text-red-500 hover:text-red-700" title="حذف"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+            const studentOptions = appData.students.map(s => `<option value="${s.id}">${s.name} (${s.studentCode})</option>`).join('');
+            const groupOptions = appData.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
 
             container.innerHTML = `
                  <div id="payments-log-page" class="page">
@@ -1404,6 +1375,29 @@
                         <h2 class="text-2xl sm:text-3xl font-bold">سجل المدفوعات</h2>
                         <button onclick="printReport('payments-log-page')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"><i class="fas fa-print mr-2"></i> طباعة السجل</button>
                     </div>
+
+                    <!-- Filters Bar -->
+                    <div class="bg-white p-4 rounded-lg shadow-md mb-6 no-print">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                            <select id="payment-student-filter" class="p-2 border rounded-lg w-full">
+                                <option value="">كل الطلاب</option>
+                                ${studentOptions}
+                            </select>
+                             <select id="payment-group-filter" class="p-2 border rounded-lg w-full">
+                                <option value="">كل المجموعات</option>
+                                ${groupOptions}
+                            </select>
+                            <div>
+                                <label for="payment-date-from" class="block text-sm font-medium text-gray-700">من تاريخ</label>
+                                <input type="date" id="payment-date-from" class="p-2 border rounded-lg w-full mt-1">
+                            </div>
+                            <div>
+                                <label for="payment-date-to" class="block text-sm font-medium text-gray-700">إلى تاريخ</label>
+                                <input type="date" id="payment-date-to" class="p-2 border rounded-lg w-full mt-1">
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto printable-area">
                         <h3 class="text-xl font-bold mb-4 text-center print-only" style="display:none;">سجل المدفوعات</h3>
                         <table class="min-w-full bg-white">
@@ -1418,11 +1412,74 @@
                                     <th class="py-3 px-4 text-right no-print">إجراءات</th>
                                 </tr>
                             </thead>
-                            <tbody>${tableRows}</tbody>
+                            <tbody id="payments-table-body"></tbody>
                         </table>
                     </div>
                 </div>
             `;
+
+            filterAndRenderPayments();
+
+            // Add event listeners
+            document.getElementById('payment-student-filter').addEventListener('change', filterAndRenderPayments);
+            document.getElementById('payment-group-filter').addEventListener('change', filterAndRenderPayments);
+            document.getElementById('payment-date-from').addEventListener('change', filterAndRenderPayments);
+            document.getElementById('payment-date-to').addEventListener('change', filterAndRenderPayments);
+        }
+
+        function filterAndRenderPayments() {
+            const studentId = document.getElementById('payment-student-filter').value;
+            const groupId = document.getElementById('payment-group-filter').value;
+            const dateFrom = document.getElementById('payment-date-from').value;
+            const dateTo = document.getElementById('payment-date-to').value;
+            const tableBody = document.getElementById('payments-table-body');
+
+            const filteredPayments = appData.payments.filter(p => {
+                const studentMatch = !studentId || p.studentId === studentId;
+                const groupMatch = !groupId || p.groupId === groupId;
+
+                const paymentDate = p.paymentDate; // YYYY-MM-DD string
+                const dateFromMatch = !dateFrom || (paymentDate && paymentDate >= dateFrom);
+                const dateToMatch = !dateTo || (paymentDate && paymentDate <= dateTo);
+
+                return studentMatch && groupMatch && dateFromMatch && dateToMatch;
+            });
+
+            // Sort payments by creation date descending
+            const sortedPayments = filteredPayments.sort((a, b) => {
+                const dateA = a.createdAt?.toMillis() || a.timestamp?.toMillis() || 0;
+                const dateB = b.createdAt?.toMillis() || b.timestamp?.toMillis() || 0;
+                return dateB - dateA;
+            });
+
+            let tableRows = '';
+            if (sortedPayments.length === 0) {
+                tableRows = '<tr><td colspan="7" class="text-center py-4 text-gray-500">لا توجد نتائج تطابق بحثك.</td></tr>';
+            } else {
+                tableRows = sortedPayments.map(p => {
+                    const student = appData.students.find(s => s.id === p.studentId);
+                    const group = appData.groups.find(g => g.id === p.groupId);
+                    const paymentDate = p.paymentDate || p.timestamp?.toDate().toLocaleDateString('ar-EG') || 'N/A';
+                    const paymentFor = p.paymentForYear ? `${new Date(0, p.paymentForMonth - 1).toLocaleString('ar-EG', { month: 'long' })} ${p.paymentForYear}` : (p.month || 'N/A');
+                    const amount = Number(p.amount) || 0;
+
+                    return `
+                        <tr class="border-b">
+                            <td class="py-2 px-4">${paymentDate}</td>
+                            <td class="py-2 px-4">${student?.name || 'طالب محذوف'}</td>
+                            <td class="py-2 px-4">${group?.name || 'N/A'}</td>
+                            <td class="py-2 px-4">${amount.toFixed(2)} جنيه</td>
+                            <td class="py-2 px-4">${paymentFor}</td>
+                            <td class="py-2 px-4">${p.notes || ''}</td>
+                            <td class="py-2 px-4 no-print space-x-2 space-x-reverse">
+                                <button onclick="generateInvoice('${p.id}')" class="text-blue-500 hover:text-blue-700" title="طباعة فاتورة"><i class="fas fa-receipt"></i></button>
+                                <button onclick="deletePayment('${p.id}')" class="text-red-500 hover:text-red-700" title="حذف"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+            tableBody.innerHTML = tableRows;
         }
 
         window.deletePayment = async function(paymentId) {
@@ -2062,6 +2119,7 @@
             const student = appData.students.find(s => s.id === payment.studentId);
             const group = appData.groups.find(g => g.id === payment.groupId);
             const paymentFor = payment.paymentForYear ? `${new Date(0, payment.paymentForMonth - 1).toLocaleString('ar-EG', { month: 'long' })} ${payment.paymentForYear}` : (payment.month || 'N/A');
+            const amount = Number(payment.amount) || 0;
 
             const modalContent = `
                 <div class="printable-area p-8" id="invoice-content">
@@ -2089,18 +2147,18 @@
                         <tbody>
                             <tr class="border-b">
                                 <td class="py-2 px-4">مصاريف شهر ${paymentFor}</td>
-                                <td class="py-2 px-4">${payment.amount.toFixed(2)} جنيه</td>
+                                <td class="py-2 px-4">${amount.toFixed(2)} جنيه</td>
                             </tr>
                         </tbody>
                         <tfoot class="font-bold">
                             <tr>
                                 <td class="py-2 px-4 text-right">الإجمالي</td>
-                                <td class="py-2 px-4">${payment.amount.toFixed(2)} جنيه</td>
+                                <td class="py-2 px-4">${amount.toFixed(2)} جنيه</td>
                             </tr>
                         </tfoot>
                     </table>
                      <div class="text-left mb-8">
-                        <p><strong>فقط:</strong> ${TAFQIT.inWords(payment.amount)} جنيه مصري لا غير.</p>
+                        <p><strong>فقط:</strong> ${TAFQIT.inWords(amount)} جنيه مصري لا غير.</p>
                     </div>
                     <div class="flex justify-between items-center text-sm text-gray-600">
                         <p>المستلم: ${currentUserData.name}</p>
