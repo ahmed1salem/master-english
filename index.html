@@ -1511,6 +1511,7 @@
                         <input type="text" id="student-name" placeholder="اسم الطالب" class="p-2 border rounded-lg w-full" value="${student?.name || ''}" required>
                         <input type="text" id="student-grade" placeholder="المرحلة الدراسية" class="p-2 border rounded-lg w-full" value="${student?.grade || ''}">
                         <input type="text" id="student-phone" placeholder="هاتف الطالب" class="p-2 border rounded-lg w-full" value="${student?.phone || ''}">
+                        <input type="text" id="student-parent-phone" placeholder="رقم ولي الأمر" class="p-2 border rounded-lg w-full md:col-span-2" value="${student?.parentPhone || ''}">
 
                         <div class="md:col-span-2">
                             <label class="block text-gray-700 text-sm font-bold mb-2">المجموعات المسجل بها:</label>
@@ -1544,6 +1545,7 @@
                 name: document.getElementById('student-name').value,
                 grade: document.getElementById('student-grade').value,
                 phone: document.getElementById('student-phone').value,
+                parentPhone: document.getElementById('student-parent-phone').value,
                 groupIds: selectedGroupIds, // Use the new array field
             };
             
@@ -1912,6 +1914,7 @@
                             <p><strong>الكود:</strong> ${student.studentCode || 'N/A'}</p>
                             <p><strong>المرحلة:</strong> ${student.grade || 'N/A'}</p>
                             <p><strong>الهاتف:</strong> ${student.phone || 'N/A'}</p>
+                            <p><strong>رقم ولي الأمر:</strong> ${student.parentPhone || 'لا يوجد'}</p>
                             <p class="sm:col-span-2"><strong>المجموعات المسجل بها:</strong> ${studentGroupNames || 'غير مسجل'}</p>
                         </div>
                     </div>
