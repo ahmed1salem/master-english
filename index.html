@@ -385,9 +385,21 @@
                 overlay.classList.toggle('hidden');
             });
 
-            overlay.addEventListener('click', () => {
+            const closeSidebar = () => {
                 sidebar.classList.add('-translate-x-full');
                 overlay.classList.add('hidden');
+            };
+
+            overlay.addEventListener('click', closeSidebar);
+
+            // Add event listener to sidebar links to close it on mobile
+            sidebar.addEventListener('click', (e) => {
+                // Check if the clicked element or its parent is an anchor tag
+                if (e.target.closest('a')) {
+                    if (window.innerWidth < 768) {
+                       closeSidebar();
+                    }
+                }
             });
         });
 
@@ -625,11 +637,6 @@
                 default:
                     pageContent.innerHTML = `<div class="page"><h2 class="text-3xl font-bold mb-6">${pageId}</h2><p>هذه الصفحة تحت الإنشاء.</p></div>`;
             }
-            
-            if (window.innerWidth < 768) {
-                document.getElementById('sidebar').classList.add('-translate-x-full');
-                document.getElementById('sidebar-overlay').classList.add('hidden');
-            }
         }
         
         // --- PAGE CONTENT RENDERERS ---
@@ -641,7 +648,7 @@
 
             container.innerHTML = `
                 <div id="dashboard-page" class="page">
-                    <h2 class="text-3xl font-bold mb-6">الرئيسية</h2>
+                    <h2 class="text-2xl sm:text-3xl font-bold mb-6">الرئيسية</h2>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div class="bg-white p-6 rounded-lg shadow-md">
                             <h3 class="text-lg font-semibold text-gray-600">إجمالي الطلاب</h3>
@@ -698,7 +705,7 @@
             container.innerHTML = `
                 <div id="students-page" class="page">
                     <div class="flex justify-between items-center mb-6 no-print">
-                        <h2 class="text-3xl font-bold">إدارة الطلاب</h2>
+                        <h2 class="text-2xl sm:text-3xl font-bold">إدارة الطلاب</h2>
                         <div>
                             <button onclick="printReport('students-page')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"><i class="fas fa-print mr-2"></i> طباعة</button>
                             <button onclick="openStudentModal()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"><i class="fas fa-plus mr-2"></i> إضافة طالب جديد</button>
@@ -742,7 +749,7 @@
 
             container.innerHTML = `
                 <div id="teachers-page" class="page">
-                     <h2 class="text-3xl font-bold mb-6">إدارة المدرسين</h2>
+                     <h2 class="text-2xl sm:text-3xl font-bold mb-6">إدارة المدرسين</h2>
                     <button onclick="openTeacherModal()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 mb-4"><i class="fas fa-plus mr-2"></i> إضافة مدرس جديد</button>
                     <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
                         <table class="min-w-full bg-white">
@@ -785,7 +792,7 @@
 
             container.innerHTML = `
                 <div id="groups-page" class="page">
-                    <h2 class="text-3xl font-bold mb-6">إدارة المجموعات</h2>
+                    <h2 class="text-2xl sm:text-3xl font-bold mb-6">إدارة المجموعات</h2>
                     <button onclick="openGroupModal()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 mb-4"><i class="fas fa-plus mr-2"></i> إضافة مجموعة جديدة</button>
                     <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
                         <table class="min-w-full bg-white">
@@ -813,7 +820,7 @@
 
             container.innerHTML = `
                 <div id="attendance-page" class="page">
-                    <h2 class="text-3xl font-bold mb-6">تسجيل الحضور والغياب</h2>
+                    <h2 class="text-2xl sm:text-3xl font-bold mb-6">تسجيل الحضور والغياب</h2>
 
                     <div class="bg-white p-6 rounded-lg shadow-md mb-6 no-print">
                         <h3 class="text-xl font-bold mb-4">1. اختر المجموعة</h3>
@@ -878,7 +885,7 @@
 
             container.innerHTML = `
                 <div id="exams-page" class="page">
-                    <h2 class="text-3xl font-bold mb-6">إدارة الامتحانات</h2>
+                    <h2 class="text-2xl sm:text-3xl font-bold mb-6">إدارة الامتحانات</h2>
                     <button onclick="openExamModal()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 mb-4"><i class="fas fa-plus mr-2"></i> إضافة امتحان جديد</button>
                     <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
                         <table class="min-w-full bg-white">
@@ -1104,7 +1111,7 @@
             container.innerHTML = `
                 <div id="finance-page" class="page">
                     <div class="flex justify-between items-center mb-6 no-print">
-                        <h2 class="text-3xl font-bold">الشؤون المالية</h2>
+                        <h2 class="text-2xl sm:text-3xl font-bold">الشؤون المالية</h2>
                         <button onclick="openPaymentModal()" class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600"><i class="fas fa-plus mr-2"></i> إضافة دفعة</button>
                     </div>
 
@@ -1345,7 +1352,7 @@
             container.innerHTML = `
                  <div id="payments-log-page" class="page">
                     <div class="flex justify-between items-center mb-6 no-print">
-                        <h2 class="text-3xl font-bold">سجل المدفوعات</h2>
+                        <h2 class="text-2xl sm:text-3xl font-bold">سجل المدفوعات</h2>
                         <button onclick="printReport('payments-log-page')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"><i class="fas fa-print mr-2"></i> طباعة السجل</button>
                     </div>
                     <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto printable-area">
@@ -1420,7 +1427,7 @@
             
             container.innerHTML = `
                 <div id="requests" class="page">
-                    <h2 class="text-3xl font-bold mb-6">طلبات التسجيل</h2>
+                    <h2 class="text-2xl sm:text-3xl font-bold mb-6">طلبات التسجيل</h2>
                     <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
                         ${listHtml}
                     </div>
@@ -1474,7 +1481,7 @@
             modalWrapper.id = id;
             modalWrapper.className = 'fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-40 p-4';
             modalWrapper.innerHTML = `
-                <div class="bg-white p-8 rounded-lg shadow-xl w-full ${size} modal" onclick="event.stopPropagation()">
+                <div class="bg-white p-6 sm:p-8 rounded-lg shadow-xl w-full ${size} modal" onclick="event.stopPropagation()">
                     ${content}
                 </div>
             `;
@@ -1922,7 +1929,7 @@
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div>
                             <h3 class="text-xl font-bold mb-2">السجل المالي</h3>
-                            <div class="overflow-y-auto max-h-64 border rounded-lg">
+                            <div class="overflow-auto max-h-64 border rounded-lg">
                                 <table class="min-w-full bg-white">
                                     <thead class="bg-gray-800 text-white sticky top-0"><tr><th class="py-2 px-4 text-right">تاريخ الدفع</th><th class="py-2 px-4 text-right">المبلغ</th><th class="py-2 px-4 text-right">عن شهر</th></tr></thead>
                                     <tbody>${paymentsHtml}</tbody>
@@ -1931,7 +1938,7 @@
                         </div>
                         <div>
                             <h3 class="text-xl font-bold mb-2">نتائج الامتحانات</h3>
-                            <div class="overflow-y-auto max-h-64 border rounded-lg">
+                            <div class="overflow-auto max-h-64 border rounded-lg">
                                 <table class="min-w-full bg-white">
                                     <thead class="bg-gray-800 text-white sticky top-0"><tr><th class="py-2 px-4 text-right">الامتحان</th><th class="py-2 px-4 text-right">الدرجة</th></tr></thead>
                                     <tbody>${examResultsHtml}</tbody>
@@ -1940,7 +1947,7 @@
                         </div>
                          <div class="lg:col-span-2">
                             <h3 class="text-xl font-bold mb-2">سجل الحضور</h3>
-                             <div class="overflow-y-auto max-h-64 border rounded-lg">
+                             <div class="overflow-auto max-h-64 border rounded-lg">
                                 <table class="min-w-full bg-white">
                                     <thead class="bg-gray-800 text-white sticky top-0"><tr><th class="py-2 px-4 text-right">التاريخ</th><th class="py-2 px-4 text-right">الوقت</th></tr></thead>
                                     <tbody>${attendanceHtml}</tbody>
@@ -2083,7 +2090,7 @@
 
             container.innerHTML = `
                 <div id="reports-page" class="page">
-                    <h2 class="text-3xl font-bold mb-6">التقارير المالية والتحليلات</h2>
+                    <h2 class="text-2xl sm:text-3xl font-bold mb-6">التقارير المالية والتحليلات</h2>
 
                     <div class="bg-white p-6 rounded-lg shadow-md no-print">
                         <h3 class="text-xl font-bold mb-4">تقرير الطلاب غير المسددين</h3>
