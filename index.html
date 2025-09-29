@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-translate="app_title">نظام إدارة Master English</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts (Cairo for Arabic, Inter for English) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Custom styles and overrides */
+        :root {
+            --font-ar: 'Cairo', sans-serif;
+            --font-en: 'Inter', sans-serif;
+        }
+        html[lang="ar"] body { font-family: var(--font-ar); }
+        html[lang="en"] body { font-family: var(--font-en); }
+
+        body {
+            background-color: #f0f2f5;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+        .page {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Styles for printable reports */
+        @media print {
+            body * { visibility: hidden; }
+            .printable-area, .printable-area * { visibility: visible; }
+            .printable-area { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Loading Spinner -->
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[100]">
+        <div class="loader"></div>
+    </div>
+
+    <!-- Auth Screen (Login/Signup) -->
+    <div id="auth-container" class="fixed inset-0 bg-gray-200 flex justify-center items-center z-50">
+        <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl transform transition-all">
+            <div class="text-center mb-6">
+                <h1 class="text-3xl font-bold text-gray-800" data-translate="center_name">Master English</h1>
+                <p class="text-gray-500" data-translate="management_system">نظام الإدارة التعليمية</p>
+            </div>
+            
+            <div class="mb-4 border-b border-gray-200">
+                <nav class="flex -mb-px" aria-label="Tabs">
+                    <a href="#" id="login-tab" class="w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm text-indigo-600 border-indigo-500" data-translate="login">تسجيل الدخول</a>
+                    <a href="#" id="signup-tab" class="w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300" data-translate="create_account">إنشاء حساب</a>
+                </nav>
+            </div>
+            
+            <!-- Login Form -->
+            <div id="login-form-container">
+                <form id="login-form">
+                    <div class="mb-4">
+                        <label for="login-email" class="block text-gray-700 text-sm font-bold mb-2" data-translate="email">البريد الإلكتروني:</label>
+                        <input type="email" id="login-email" class="shadow-sm appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-400" required>
+                    </div>
+                    <div class="mb-4">
+                        <label for="login-password" class="block text-gray-700 text-sm font-bold mb-2" data-translate="password">كلمة المرور:</label>
+                        <input type="password" id="login-password" class="shadow-sm appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-400" required>
+                    </div>
+                    <p id="login-error" class="text-red-500 text-xs italic mb-4 h-4"></p>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline w-full transition-colors" data-translate="login">
+                        دخول
+                    </button>
+                </form>
+            </div>
+
+            <!-- Signup Form -->
+            <div id="signup-form-container" class="hidden">
+                <form id="signup-form">
+                     <div class="mb-4">
+                        <label for="signup-name" class="block text-gray-700 text-sm font-bold mb-2" data-translate="full_name">الاسم الكامل:</label>
+                        <input type="text" id="signup-name" class="shadow-sm appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-400" required>
+                    </div>
+                    <div class="mb-4">
+                        <label for="signup-email" class="block text-gray-700 text-sm font-bold mb-2" data-translate="email">البريد الإلكتروني:</label>
+                        <input type="email" id="signup-email" class="shadow-sm appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-400" required>
+                    </div>
+                    <div class="mb-4">
+                        <label for="signup-password" class="block text-gray-700 text-sm font-bold mb-2" data-translate="password">كلمة المرور:</label>
+                        <input type="password" id="signup-password" class="shadow-sm appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-400" required>
+                    </div>
+                    <p id="signup-error" class="text-red-500 text-xs italic mb-4 h-4"></p>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline w-full transition-colors" data-translate="create_account">
+                        إنشاء حساب
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pending Approval Screen -->
+    <div id="pending-approval-container" class="hidden fixed inset-0 bg-gray-200 flex justify-center items-center z-50 p-4">
+        <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl text-center">
+            <i class="fas fa-hourglass-half text-5xl text-amber-500 mb-4"></i>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2" data-translate="account_pending_title">الحساب قيد المراجعة</h2>
+            <p class="text-gray-600 mb-6" data-translate="account_pending_message">تم استلام طلبك بنجاح. سيتم تفعيل حسابك بعد موافقة الإدارة. سيتم إعلامك عند الموافقة.</p>
+            <button onclick="handleLogout()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg focus:outline-none focus:shadow-outline transition-colors" data-translate="logout">تسجيل الخروج</button>
+        </div>
+    </div>
+
+
+    <!-- Main App Container -->
+    <div id="app-container" class="relative min-h-screen md:flex hidden">
+
+        <!-- Sidebar Navigation -->
+        <nav id="sidebar" class="bg-gray-800 text-white w-64 p-4 flex-shrink-0 flex flex-col no-print fixed md:relative h-full z-20 transform -translate-x-full md:translate-x-0">
+            <div class="flex items-center justify-between mb-4">
+                <h1 class="text-2xl font-bold text-center" data-translate="dashboard">لوحة التحكم</h1>
+                 <!-- Language Switcher -->
+                 <select id="language-switcher" class="bg-gray-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2">
+                    <option value="ar">العربية</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
+            
+            <!-- User Info -->
+            <div class="mb-4 p-2 rounded-lg bg-gray-700 text-center">
+                <p id="user-name" class="font-bold"></p>
+                <p id="user-email" class="text-xs text-gray-400"></p>
+                <p id="user-role" class="text-xs text-indigo-400 font-semibold uppercase mt-1"></p>
+            </div>
+
+            <ul class="space-y-2 flex-grow">
+                <!-- Common Links -->
+                <li><a href="#" onclick="showPage('dashboard')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-tachometer-alt fa-fw mx-2"></i> <span data-translate="nav_dashboard">الرئيسية</span></a></li>
+                
+                <!-- Admin-only Links -->
+                <li class="admin-only"><a href="#" onclick="showPage('requests')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-user-plus fa-fw mx-2"></i> <span data-translate="nav_requests">طلبات التسجيل</span> <span id="requests-count-badge" class="bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center ms-auto">0</span></a></li>
+                <li class="admin-only"><a href="#" onclick="showPage('attendance')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-user-check fa-fw mx-2"></i> <span data-translate="nav_attendance">الحضور والغياب</span></a></li>
+                <li class="admin-only"><a href="#" onclick="showPage('students')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-users fa-fw mx-2"></i> <span data-translate="nav_students">الطلاب</span></a></li>
+                <li class="admin-only"><a href="#" onclick="showPage('teachers')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-chalkboard-teacher fa-fw mx-2"></i> <span data-translate="nav_teachers">المدرسين</span></a></li>
+                <li class="admin-only"><a href="#" onclick="showPage('finance')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-file-invoice-dollar fa-fw mx-2"></i> <span data-translate="nav_finance">الشؤون المالية</span></a></li>
+                <li class="admin-only"><a href="#" onclick="showPage('payments')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-history fa-fw mx-2"></i> <span data-translate="nav_payments_log">سجل المدفوعات</span></a></li>
+                
+                <!-- Teacher & Admin Links -->
+                <li class="admin-only teacher-only"><a href="#" onclick="showPage('groups')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-layer-group fa-fw mx-2"></i> <span data-translate="nav_groups">المجموعات</span></a></li>
+                <li class="admin-only teacher-only"><a href="#" onclick="showPage('exams')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-pen-alt fa-fw mx-2"></i> <span data-translate="nav_exams">الامتحانات</span></a></li>
+            </ul>
+             
+            <div>
+                <a href="#" onclick="handleLogout()" class="flex items-center p-2 rounded-lg text-red-400 hover:bg-red-700 hover:text-white"><i class="fas fa-sign-out-alt fa-fw mx-2"></i> <span data-translate="logout">تسجيل الخروج</span></a>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <div class="flex-1 flex flex-col">
+            <!-- Top bar for mobile -->
+            <div class="md:hidden flex justify-between items-center bg-gray-800 text-white p-4 no-print">
+                <h1 class="text-xl font-bold" data-translate="dashboard">لوحة التحكم</h1>
+                <button id="menu-button" class="focus:outline-none">
+                    <i class="fas fa-bars text-2xl"></i>
+                </button>
+            </div>
+
+            <main class="flex-1 p-4 sm:p-8 overflow-y-auto">
+                
+                <!-- All Pages will be rendered here -->
+                <div id="page-content">
+                    <!-- Dashboard Page is loaded by default -->
+                </div>
+
+                <footer class="text-center text-gray-500 text-sm mt-8 pb-4 no-print">
+                    Made with ❤ by <a href="#" class="text-blue-500 hover:underline">Gemini</a>
+                </footer>
+            </main>
+        </div>
+    </div>
+
+    <!-- All Modals are here -->
+
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, getDocs, onSnapshot, updateDoc, where, query, addDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+
+        //
+        // <<<--- ألصق كود إعدادات Firebase الخاص بك هنا --->>>
+        //
+        const firebaseConfig = {
+            apiKey: "AIzaSyBWqms4OWqtLvWCXZ7y7wysqUcj-mpd6fI",
+            authDomain: "master-english-center.firebaseapp.com",
+            projectId: "master-english-center",
+            storageBucket: "master-english-center.appspot.com",
+            messagingSenderId: "945826515359",
+            appId: "1:945826515359:web:57f21b2345dcc56ff2d5aa"
+        };
+        // <<<--- نهاية منطقة لصق الكود --->>>
+        //
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- GLOBAL STATE ---
+        let currentUser = null;
+        let currentUserData = null;
+        let unsubscribeListeners = []; // To detach listeners on logout
+
+        // --- TRANSLATION DATA & LOGIC ---
+        const translations = {
+            en: {
+                app_title: "Master English Management System",
+                center_name: "Master English",
+                management_system: "Educational Management System",
+                login: "Login",
+                create_account: "Create Account",
+                email: "Email Address",
+                password: "Password",
+                full_name: "Full Name",
+                account_pending_title: "Account Under Review",
+                account_pending_message: "Your request has been received. Your account will be activated after admin approval. You will be notified upon approval.",
+                logout: "Logout",
+                dashboard: "Dashboard",
+                nav_dashboard: "Dashboard",
+                nav_requests: "Registration Requests",
+                nav_attendance: "Attendance",
+                nav_students: "Students",
+                nav_teachers: "Teachers",
+                nav_finance: "Financials",
+                nav_payments_log: "Payments Log",
+                nav_groups: "Groups",
+                nav_exams: "Exams",
+                // ... add more translations as needed
+            },
+            ar: {
+                app_title: "نظام إدارة Master English",
+                center_name: "Master English",
+                management_system: "نظام الإدارة التعليمية",
+                login: "تسجيل الدخول",
+                create_account: "إنشاء حساب",
+                email: "البريد الإلكتروني",
+                password: "كلمة المرور",
+                full_name: "الاسم الكامل",
+                account_pending_title: "الحساب قيد المراجعة",
+                account_pending_message: "تم استلام طلبك بنجاح. سيتم تفعيل حسابك بعد موافقة الإدارة. سيتم إعلامك عند الموافقة.",
+                logout: "تسجيل الخروج",
+                dashboard: "لوحة التحكم",
+                nav_dashboard: "الرئيسية",
+                nav_requests: "طلبات التسجيل",
+                nav_attendance: "الحضور والغياب",
+                nav_students: "الطلاب",
+                nav_teachers: "المدرسين",
+                nav_finance: "الشؤون المالية",
+                nav_payments_log: "سجل المدفوعات",
+                nav_groups: "المجموعات",
+                nav_exams: "الامتحانات",
+                 // ... add more translations as needed
+            }
+        };
+
+        function setLanguage(lang) {
+            localStorage.setItem('language', lang);
+            document.documentElement.lang = lang;
+            document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+            document.body.style.fontFamily = lang === 'ar' ? "var(--font-ar)" : "var(--font-en)";
+
+            document.querySelectorAll('[data-translate]').forEach(el => {
+                const key = el.getAttribute('data-translate');
+                if (translations[lang] && translations[lang][key]) {
+                    el.textContent = translations[lang][key];
+                }
+            });
+        }
+        
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Language switcher setup
+            const langSwitcher = document.getElementById('language-switcher');
+            const savedLang = localStorage.getItem('language') || 'ar';
+            langSwitcher.value = savedLang;
+            setLanguage(savedLang);
+            langSwitcher.addEventListener('change', (e) => setLanguage(e.target.value));
+
+            // Auth forms setup
+            document.getElementById('login-tab').addEventListener('click', (e) => switchAuthTab(e, 'login'));
+            document.getElementById('signup-tab').addEventListener('click', (e) => switchAuthTab(e, 'signup'));
+            document.getElementById('login-form').addEventListener('submit', handleLogin);
+            document.getElementById('signup-form').addEventListener('submit', handleSignup);
+            
+            // Mobile menu
+            document.getElementById('menu-button').addEventListener('click', () => {
+                document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            });
+        });
+
+        function switchAuthTab(e, tab) {
+            e.preventDefault();
+            const loginTab = document.getElementById('login-tab');
+            const signupTab = document.getElementById('signup-tab');
+            const loginForm = document.getElementById('login-form-container');
+            const signupForm = document.getElementById('signup-form-container');
+            
+            if (tab === 'login') {
+                loginTab.classList.add('text-indigo-600', 'border-indigo-500');
+                loginTab.classList.remove('text-gray-500', 'border-transparent');
+                signupTab.classList.remove('text-indigo-600', 'border-indigo-500');
+                signupTab.classList.add('text-gray-500', 'border-transparent');
+                loginForm.classList.remove('hidden');
+                signupForm.classList.add('hidden');
+            } else {
+                signupTab.classList.add('text-indigo-600', 'border-indigo-500');
+                signupTab.classList.remove('text-gray-500', 'border-transparent');
+                loginTab.classList.remove('text-indigo-600', 'border-indigo-500');
+                loginTab.classList.add('text-gray-500', 'border-transparent');
+                signupForm.classList.remove('hidden');
+                loginForm.classList.add('hidden');
+            }
+        }
+        
+        // --- AUTHENTICATION & SESSION MANAGEMENT ---
+        onAuthStateChanged(auth, async (user) => {
+            const loadingOverlay = document.getElementById('loading-overlay');
+            if (user) {
+                currentUser = user;
+                const userDocRef = doc(db, "users", user.uid);
+                const userDocSnap = await getDoc(userDocRef);
+
+                if (userDocSnap.exists()) {
+                    currentUserData = userDocSnap.data();
+                    if (currentUserData.role === 'pending') {
+                        showScreen('pending-approval');
+                    } else {
+                        initializeAppUI();
+                        showScreen('app');
+                    }
+                } else {
+                    console.error("User document not found in Firestore!");
+                    handleLogout();
+                }
+            } else {
+                currentUser = null;
+                currentUserData = null;
+                showScreen('auth');
+                cleanupListeners();
+            }
+            loadingOverlay.classList.add('hidden');
+        });
+
+        async function handleSignup(e) {
+            e.preventDefault();
+            const name = document.getElementById('signup-name').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const errorEl = document.getElementById('signup-error');
+            errorEl.textContent = '';
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                
+                // Create a user document in Firestore
+                await setDoc(doc(db, "users", user.uid), {
+                    uid: user.uid,
+                    name: name,
+                    email: email,
+                    role: 'pending', // All new users are pending approval
+                    createdAt: new Date()
+                });
+                // The onAuthStateChanged listener will handle the UI switch
+            } catch (error) {
+                console.error("Signup error:", error);
+                errorEl.textContent = "فشل إنشاء الحساب. " + error.message;
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const errorEl = document.getElementById('login-error');
+            errorEl.textContent = '';
+            
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                // onAuthStateChanged will handle the rest
+            } catch (error) {
+                console.error("Login error:", error);
+                errorEl.textContent = "البريد الإلكتروني أو كلمة المرور غير صحيحة.";
+            }
+        }
+        
+        window.handleLogout = async function() {
+            await signOut(auth);
+            // onAuthStateChanged will handle UI changes
+        }
+
+        function showScreen(screenName) {
+            document.getElementById('auth-container').classList.add('hidden');
+            document.getElementById('app-container').classList.add('hidden');
+            document.getElementById('pending-approval-container').classList.add('hidden');
+
+            if (screenName === 'auth') {
+                document.getElementById('auth-container').classList.remove('hidden');
+            } else if (screenName === 'app') {
+                document.getElementById('app-container').classList.remove('hidden');
+                document.getElementById('app-container').classList.add('md:flex');
+            } else if (screenName === 'pending-approval') {
+                document.getElementById('pending-approval-container').classList.remove('hidden');
+            }
+        }
+
+        // --- APP UI INITIALIZATION ---
+        function initializeAppUI() {
+            // Set user info in sidebar
+            document.getElementById('user-name').textContent = currentUserData.name;
+            document.getElementById('user-email').textContent = currentUserData.email;
+            document.getElementById('user-role').textContent = currentUserData.role;
+            
+            // Show/hide UI elements based on role
+            const isAdmin = currentUserData.role === 'admin';
+            const isTeacher = currentUserData.role === 'teacher';
+            
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = isAdmin ? 'block' : 'none');
+            document.querySelectorAll('.teacher-only').forEach(el => el.style.display = (isAdmin || isTeacher) ? 'block' : 'none');
+
+            // Load default page
+            showPage('dashboard');
+            
+            // Setup real-time listeners
+            setupRealtimeListeners();
+        }
+
+        // --- REAL-TIME DATA LISTENERS ---
+        function setupRealtimeListeners() {
+            cleanupListeners(); // Clear old listeners before setting new ones
+
+            if(currentUserData.role === 'admin') {
+                // Admin: Listen to all registration requests
+                const requestsQuery = query(collection(db, "users"), where("role", "==", "pending"));
+                const unsubscribeRequests = onSnapshot(requestsQuery, (snapshot) => {
+                    const count = snapshot.size;
+                    const badge = document.getElementById('requests-count-badge');
+                    badge.textContent = count;
+                    badge.style.display = count > 0 ? 'flex' : 'none';
+                    // If the user is on the requests page, refresh it
+                    if (document.getElementById('requests')) {
+                        renderRequestsPage(snapshot.docs);
+                    }
+                });
+                unsubscribeListeners.push(unsubscribeRequests);
+            }
+            
+            // Add more listeners here for students, groups, etc., as needed for real-time updates
+        }
+
+        function cleanupListeners() {
+            unsubscribeListeners.forEach(unsubscribe => unsubscribe());
+            unsubscribeListeners = [];
+        }
+
+        // --- PAGE ROUTING & RENDERING ---
+        window.showPage = function(pageId) {
+            const pageContent = document.getElementById('page-content');
+            
+            // Very simple router
+            switch(pageId) {
+                case 'dashboard':
+                    pageContent.innerHTML = `
+                        <div id="dashboard" class="page">
+                            <h2 class="text-3xl font-bold mb-6">الرئيسية</h2>
+                        </div>`;
+                    // Load dashboard data here
+                    break;
+                case 'requests':
+                    if (currentUserData.role !== 'admin') return;
+                     pageContent.innerHTML = `
+                        <div id="requests" class="page">
+                            <h2 class="text-3xl font-bold mb-6">طلبات التسجيل</h2>
+                            <div id="requests-list" class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+                                <!-- Requests will be rendered here by the listener -->
+                                <p>جاري تحميل الطلبات...</p>
+                            </div>
+                        </div>`;
+                     // The onSnapshot listener will call renderRequestsPage
+                    break;
+                // Add cases for other pages: students, teachers, etc.
+                // For now, they are placeholders
+                default:
+                    pageContent.innerHTML = `<div class="page"><h2 class="text-3xl font-bold mb-6">${pageId}</h2><p>هذه الصفحة تحت الإنشاء.</p></div>`;
+            }
+            
+            // Close mobile sidebar on navigation
+             if (window.innerWidth < 768) {
+                document.getElementById('sidebar').classList.add('-translate-x-full');
+            }
+        }
+        
+        // --- ADMIN-SPECIFIC FUNCTIONS ---
+        function renderRequestsPage(requestDocs) {
+            const container = document.getElementById('requests-list');
+            if (!container) return; // Page not visible
+            
+            if (requestDocs.length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-500">لا توجد طلبات تسجيل حاليًا.</p>';
+                return;
+            }
+            
+            let tableHtml = `
+                <table class="min-w-full bg-white">
+                    <thead class="bg-gray-800 text-white">
+                        <tr>
+                            <th class="py-3 px-4 text-right">الاسم</th>
+                            <th class="py-3 px-4 text-right">البريد الإلكتروني</th>
+                            <th class="py-3 px-4 text-right">تاريخ الطلب</th>
+                            <th class="py-3 px-4 text-right">إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+            
+            requestDocs.forEach(doc => {
+                const request = doc.data();
+                const requestDate = request.createdAt.toDate().toLocaleDateString('ar-EG');
+                tableHtml += `
+                    <tr class="border-b">
+                        <td class="py-2 px-4">${request.name}</td>
+                        <td class="py-2 px-4">${request.email}</td>
+                        <td class="py-2 px-4">${requestDate}</td>
+                        <td class="py-2 px-4 space-x-2 space-x-reverse">
+                            <button onclick="approveUser('${doc.id}')" class="bg-green-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-green-600">موافقة</button>
+                            <button onclick="rejectUser('${doc.id}')" class="bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600">رفض</button>
+                        </td>
+                    </tr>`;
+            });
+
+            tableHtml += '</tbody></table>';
+            container.innerHTML = tableHtml;
+        }
+
+        window.approveUser = async function(userId) {
+            if (!confirm("هل أنت متأكد من الموافقة على هذا الحساب كـ 'مدرس'؟")) return;
+            const userDocRef = doc(db, "users", userId);
+            try {
+                await updateDoc(userDocRef, {
+                    role: 'teacher' // Default approval role is teacher
+                });
+                alert("تمت الموافقة على الحساب بنجاح.");
+            } catch (error) {
+                console.error("Error approving user:", error);
+                alert("حدث خطأ أثناء الموافقة.");
+            }
+        }
+        
+        window.rejectUser = async function(userId) {
+            if (!confirm("هل أنت متأكد من رفض وحذف هذا الطلب؟ لا يمكن التراجع عن هذا الإجراء.")) return;
+            // For security, rejecting should probably delete the user from Auth and Firestore
+            // This is a simplified version that just deletes the Firestore doc
+            const userDocRef = doc(db, "users", userId);
+            try {
+                await deleteDoc(userDocRef);
+                // You would also need a backend function to delete the user from Firebase Auth
+                alert("تم رفض الطلب وحذفه.");
+            } catch (error) {
+                console.error("Error rejecting user:", error);
+                alert("حدث خطأ أثناء الرفض.");
+            }
+        }
+
+    </script>
+</body>
+</html>
+
