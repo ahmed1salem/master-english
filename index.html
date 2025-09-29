@@ -8,6 +8,9 @@
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- Tafqit Library for converting numbers to text -->
+    <script src="https://cdn.jsdelivr.net/npm/tafqit@2.2.2/dist/tafqit.umd.js"></script>
+
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -184,6 +187,7 @@
                 <li class="admin-only teacher-only"><a href="#" onclick="showPage('students')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-users fa-fw mx-2"></i> <span data-translate="nav_students">الطلاب</span></a></li>
                 <li class="admin-only"><a href="#" onclick="showPage('teachers')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-chalkboard-teacher fa-fw mx-2"></i> <span data-translate="nav_teachers">المدرسين</span></a></li>
                 <li class="admin-only teacher-only"><a href="#" onclick="showPage('finance')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-file-invoice-dollar fa-fw mx-2"></i> <span data-translate="nav_finance">الشؤون المالية</span></a></li>
+                <li class="admin-only teacher-only"><a href="#" onclick="showPage('reports')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-chart-pie fa-fw mx-2"></i> <span data-translate="nav_reports">التقارير المالية</span></a></li>
                 <li class="admin-only"><a href="#" onclick="showPage('payments')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-history fa-fw mx-2"></i> <span data-translate="nav_payments_log">سجل المدفوعات</span></a></li>
                 
                 <!-- Teacher & Admin Links -->
@@ -285,9 +289,68 @@
                 nav_students: "Students",
                 nav_teachers: "Teachers",
                 nav_finance: "Financials",
+                nav_reports: "Financial Reports",
                 nav_payments_log: "Payments Log",
                 nav_groups: "Groups",
                 nav_exams: "Exams",
+                // Finance Page
+                finance_title: "Financials",
+                add_payment: "Add Payment",
+                total_revenue: "Total Revenue",
+                current_month_revenue: "Current Month's Revenue (by due date)",
+                payment_count: "Payments Count",
+                monthly_revenue_by_due_date: "Monthly Revenue (by due date)",
+                group_revenue: "Revenue by Group",
+                // Payment Modal
+                new_payment_title: "Record New Payment",
+                student: "Student",
+                select_student: "-- Select Student --",
+                amount_paid: "Amount Paid",
+                payment_date: "Actual Payment Date",
+                payment_for_month: "Payment for Month",
+                payment_for_year: "Payment for Year",
+                notes: "Notes",
+                notes_optional: "Notes (optional)",
+                cancel: "Cancel",
+                save_payment: "Save Payment",
+                // Payments Log
+                payment_log_title: "Payments Log",
+                print_log: "Print Log",
+                payment_date_header: "Payment Date",
+                for_month_year: "For Month/Year",
+                actions: "Actions",
+                print_invoice: "Print Invoice",
+                delete: "Delete",
+                // Invoice
+                receipt_title: "Cash Receipt",
+                receipt_date: "Date",
+                receipt_no: "Receipt No.",
+                received_from: "Received from student:",
+                description: "Description",
+                amount: "Amount",
+                fees_for_month: "Fees for month",
+                total: "Total",
+                amount_in_words: "Amount in words:",
+                egyptian_pounds_only: "Egyptian Pounds only.",
+                received_by: "Received by:",
+                receiver_signature: "Receiver's Signature:",
+                close: "Close",
+                print: "Print",
+                // Reports Page
+                reports_title: "Financial Reports & Analytics",
+                unpaid_students_report: "Unpaid Students Report",
+                month: "Month",
+                year: "Year",
+                group_optional: "Group (optional)",
+                all_groups: "All Groups",
+                generate_report: "Generate Report",
+                generating_report: "Generating report...",
+                all_students_paid: "All students in the selected scope have paid for this month.",
+                unpaid_report_for: "Unpaid students report for:",
+                group: "Group:",
+                code: "Code",
+                name: "Name",
+                phone: "Phone",
             },
             ar: {
                 app_title: "نظام إدارة Master English",
@@ -308,9 +371,68 @@
                 nav_students: "الطلاب",
                 nav_teachers: "المدرسين",
                 nav_finance: "الشؤون المالية",
+                nav_reports: "التقارير المالية",
                 nav_payments_log: "سجل المدفوعات",
                 nav_groups: "المجموعات",
                 nav_exams: "الامتحانات",
+                // Finance Page
+                finance_title: "الشؤون المالية",
+                add_payment: "إضافة دفعة",
+                total_revenue: "إجمالي الإيرادات",
+                current_month_revenue: "إيرادات الشهر الحالي (حسب شهر الاستحقاق)",
+                payment_count: "عدد المدفوعات",
+                monthly_revenue_by_due_date: "الإيرادات الشهرية (حسب شهر الاستحقاق)",
+                group_revenue: "إيرادات المجموعات",
+                 // Payment Modal
+                new_payment_title: "تسجيل دفعة جديدة",
+                student: "الطالب",
+                select_student: "-- اختر الطالب --",
+                amount_paid: "المبلغ المدفوع",
+                payment_date: "تاريخ الدفع الفعلي",
+                payment_for_month: "الدفع عن شهر",
+                payment_for_year: "الدفع عن سنة",
+                notes: "ملاحظات",
+                notes_optional: "ملاحظات (اختياري)",
+                cancel: "إلغاء",
+                save_payment: "حفظ الدفعة",
+                // Payments Log
+                payment_log_title: "سجل المدفوعات",
+                print_log: "طباعة السجل",
+                payment_date_header: "تاريخ الدفع",
+                for_month_year: "عن شهر/سنة",
+                actions: "إجراءات",
+                print_invoice: "طباعة فاتورة",
+                delete: "حذف",
+                // Invoice
+                receipt_title: "إيصال استلام نقدية",
+                receipt_date: "التاريخ",
+                receipt_no: "رقم الإيصال",
+                received_from: "استلمنا من الطالب/ة:",
+                description: "البيان",
+                amount: "المبلغ",
+                fees_for_month: "مصاريف شهر",
+                total: "الإجمالي",
+                amount_in_words: "فقط:",
+                egyptian_pounds_only: "جنيه مصري لا غير.",
+                received_by: "المستلم:",
+                receiver_signature: "توقيع المستلم:",
+                close: "إغلاق",
+                print: "طباعة",
+                // Reports Page
+                reports_title: "التقارير المالية والتحليلات",
+                unpaid_students_report: "تقرير الطلاب غير المسددين",
+                month: "الشهر",
+                year: "السنة",
+                group_optional: "المجموعة (اختياري)",
+                all_groups: "كل المجموعات",
+                generate_report: "إنشاء التقرير",
+                generating_report: "جاري إنشاء التقرير...",
+                all_students_paid: "كل الطلاب في النطاق المحدد قد سددوا لهذا الشهر.",
+                unpaid_report_for: "تقرير الطلاب غير المسددين عن:",
+                group: "المجموعة:",
+                code: "الكود",
+                name: "الاسم",
+                phone: "الهاتف",
             }
         };
 
@@ -589,6 +711,7 @@
                 case 'attendance': renderAttendancePage(); break;
                 case 'exams': renderExamsPage(); break;
                 case 'finance': renderFinancePage(); break;
+                case 'reports': renderReportsPage(); break;
                 case 'payments': renderPaymentsLogPage(); break;
                 default:
                     pageContent.innerHTML = `<div class="page"><h2 class="text-3xl font-bold mb-6">${pageId}</h2><p>هذه الصفحة تحت الإنشاء.</p></div>`;
@@ -993,8 +1116,22 @@
             const groupRevenue = {}; // { 'groupId': revenue }
 
             appData.payments.forEach(p => {
-                const month = p.timestamp.toDate().toISOString().slice(0, 7); // YYYY-MM
-                monthlyRevenue[month] = (monthlyRevenue[month] || 0) + p.amount;
+                // Handle both old and new data structures
+                let year, month;
+                if (p.paymentForYear && p.paymentForMonth) {
+                    year = p.paymentForYear;
+                    month = p.paymentForMonth;
+                } else if (p.timestamp) { // Fallback for old data
+                    const d = p.timestamp.toDate();
+                    year = d.getFullYear();
+                    month = d.getMonth() + 1;
+                } else {
+                    return; // Skip if no date info
+                }
+
+                const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+                monthlyRevenue[monthKey] = (monthlyRevenue[monthKey] || 0) + p.amount;
+
                 if(p.groupId) {
                     groupRevenue[p.groupId] = (groupRevenue[p.groupId] || 0) + p.amount;
                 }
@@ -1020,6 +1157,8 @@
                 `
             }).join('');
 
+            const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+
             container.innerHTML = `
                 <div id="finance-page" class="page">
                     <div class="flex justify-between items-center mb-6 no-print">
@@ -1034,8 +1173,8 @@
                             <p class="text-gray-500">جنيه</p>
                         </div>
                         <div class="bg-white p-6 rounded-lg shadow-md text-center">
-                            <h3 class="text-lg font-semibold text-gray-600">إيرادات الشهر الحالي</h3>
-                            <p class="text-4xl font-bold mt-2">${(monthlyRevenue[new Date().toISOString().slice(0, 7)] || 0).toFixed(2)}</p>
+                            <h3 class="text-lg font-semibold text-gray-600">إيرادات الشهر الحالي (حسب شهر الدفع)</h3>
+                            <p class="text-4xl font-bold mt-2">${(monthlyRevenue[currentMonthKey] || 0).toFixed(2)}</p>
                              <p class="text-gray-500">جنيه</p>
                         </div>
                         <div class="bg-white p-6 rounded-lg shadow-md text-center">
@@ -1046,7 +1185,7 @@
 
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="bg-white p-6 rounded-lg shadow-md">
-                            <h3 class="text-xl font-bold mb-4">الإيرادات الشهرية</h3>
+                            <h3 class="text-xl font-bold mb-4">الإيرادات الشهرية (حسب شهر الاستحقاق)</h3>
                             <table class="min-w-full">
                                 <thead class="bg-gray-200"><tr><th class="py-2 px-4 text-right">الشهر</th><th class="py-2 px-4 text-right">الإيرادات</th></tr></thead>
                                 <tbody>${monthlyRows}</tbody>
@@ -1065,19 +1204,68 @@
         }
 
         window.openPaymentModal = function() {
-            let studentsOptions = appData.students.map(s => `<option value="${s.id}" data-groupid="${s.groupId}">${s.name} (${s.studentCode})</option>`).join('');
+            const today = new new Date();
+            const currentYear = today.getFullYear();
+            const currentMonth = today.getMonth() + 1;
+            const currentDate = today.toISOString().slice(0, 10);
+
+            let visibleStudents = appData.students;
+            const isAdmin = currentUserData.role === 'admin';
+            const isTeacher = currentUserData.role === 'teacher';
+
+            if (isTeacher && !isAdmin) {
+                // appData.groups is already filtered for the current teacher
+                const teacherGroupIds = appData.groups.map(g => g.id);
+                visibleStudents = appData.students.filter(s => teacherGroupIds.includes(s.groupId));
+            }
+
+            let studentsOptions = visibleStudents.map(s => `<option value="${s.id}" data-groupid="${s.groupId}">${s.name} (${s.studentCode})</option>`).join('');
+
+            const monthsOptions = Array.from({length: 12}, (_, i) => {
+                const month = i + 1;
+                return `<option value="${month}" ${month === currentMonth ? 'selected' : ''}>${new Date(0, i).toLocaleString('ar-EG', { month: 'long' })}</option>`;
+            }).join('');
+
+            const yearsOptions = Array.from({length: 5}, (_, i) => {
+                const year = currentYear - 2 + i;
+                return `<option value="${year}" ${year === currentYear ? 'selected' : ''}>${year}</option>`;
+            }).join('');
+
 
             const modalContent = `
                 <h3 class="text-2xl font-bold mb-6">تسجيل دفعة جديدة</h3>
                 <form id="payment-form">
-                    <div class="space-y-4">
-                        <select id="payment-student" class="p-2 border rounded-lg w-full" required>
-                            <option value="">-- اختر الطالب --</option>
-                            ${studentsOptions}
-                        </select>
-                        <input type="number" id="payment-amount" placeholder="المبلغ المدفوع" class="p-2 border rounded-lg w-full" required>
-                        <input type="text" id="payment-month" placeholder="شهر الدفع (مثال: يناير)" class="p-2 border rounded-lg w-full" required>
-                        <textarea id="payment-notes" placeholder="ملاحظات (اختياري)" class="p-2 border rounded-lg w-full h-24"></textarea>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="md:col-span-2">
+                            <label for="payment-student" class="block text-sm font-medium text-gray-700 mb-1">الطالب</label>
+                            <select id="payment-student" class="p-2 border rounded-lg w-full" required>
+                                <option value="">-- اختر الطالب --</option>
+                                ${studentsOptions}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="payment-amount" class="block text-sm font-medium text-gray-700 mb-1">المبلغ المدفوع</label>
+                            <input type="number" id="payment-amount" placeholder="المبلغ المدفوع" class="p-2 border rounded-lg w-full" required>
+                        </div>
+                        <div>
+                            <label for="payment-date" class="block text-sm font-medium text-gray-700 mb-1">تاريخ الدفع الفعلي</label>
+                            <input type="date" id="payment-date" class="p-2 border rounded-lg w-full" value="${currentDate}" required>
+                        </div>
+
+                        <div>
+                            <label for="payment-for-month" class="block text-sm font-medium text-gray-700 mb-1">الدفع عن شهر</label>
+                            <select id="payment-for-month" class="p-2 border rounded-lg w-full" required>${monthsOptions}</select>
+                        </div>
+                        <div>
+                            <label for="payment-for-year" class="block text-sm font-medium text-gray-700 mb-1">الدفع عن سنة</label>
+                            <select id="payment-for-year" class="p-2 border rounded-lg w-full" required>${yearsOptions}</select>
+                        </div>
+
+                        <div class="md:col-span-2">
+                             <label for="payment-notes" class="block text-sm font-medium text-gray-700 mb-1">ملاحظات</label>
+                            <textarea id="payment-notes" placeholder="ملاحظات (اختياري)" class="p-2 border rounded-lg w-full h-20"></textarea>
+                        </div>
                     </div>
                     <div class="flex justify-end space-x-4 space-x-reverse mt-6">
                         <button type="button" onclick="closeModal('payment-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إلغاء</button>
@@ -1085,7 +1273,7 @@
                     </div>
                 </form>
             `;
-            renderModal('payment-modal', modalContent);
+            renderModal('payment-modal', modalContent, 'max-w-2xl');
 
             document.getElementById('payment-form').onsubmit = handlePaymentFormSubmit;
         }
@@ -1099,20 +1287,25 @@
                 studentId: selectedOption.value,
                 groupId: selectedOption.dataset.groupid,
                 amount: parseFloat(document.getElementById('payment-amount').value),
-                month: document.getElementById('payment-month').value,
+                paymentDate: document.getElementById('payment-date').value,
+                paymentForMonth: parseInt(document.getElementById('payment-for-month').value),
+                paymentForYear: parseInt(document.getElementById('payment-for-year').value),
                 notes: document.getElementById('payment-notes').value,
-                timestamp: serverTimestamp()
+                createdAt: serverTimestamp(),
+                recordedBy: currentUser.uid
             };
 
-            if (!paymentData.studentId || !paymentData.amount || !paymentData.month) {
+            if (!paymentData.studentId || !paymentData.amount || !paymentData.paymentDate) {
                 alert("يرجى ملء جميع الحقول المطلوبة.");
                 return;
             }
 
             try {
-                await addDoc(collection(db, "payments"), paymentData);
+                const docRef = await addDoc(collection(db, "payments"), paymentData);
                 alert('تم تسجيل الدفعة بنجاح.');
                 closeModal('payment-modal');
+                // Optional: Immediately generate and show invoice
+                // generateInvoice(docRef.id);
             } catch (error) {
                 console.error("Error saving payment:", error);
                 alert("فشل تسجيل الدفعة.");
@@ -1122,26 +1315,32 @@
         function renderPaymentsLogPage() {
             const container = document.getElementById('page-content');
 
-            // Sort payments by timestamp descending
+            // Sort payments by creation date descending
             const sortedPayments = [...appData.payments].sort((a, b) => {
-                const dateA = a.timestamp?.toMillis() || 0;
-                const dateB = b.timestamp?.toMillis() || 0;
+                const dateA = a.createdAt?.toMillis() || a.timestamp?.toMillis() || 0;
+                const dateB = b.createdAt?.toMillis() || b.timestamp?.toMillis() || 0;
                 return dateB - dateA;
             });
 
             let tableRows = sortedPayments.map(p => {
                 const student = appData.students.find(s => s.id === p.studentId);
                 const group = appData.groups.find(g => g.id === p.groupId);
+
+                // Handle old and new data structures for display
+                const paymentDate = p.paymentDate || p.timestamp?.toDate().toLocaleDateString('ar-EG') || 'N/A';
+                const paymentFor = p.paymentForYear ? `${new Date(0, p.paymentForMonth - 1).toLocaleString('ar-EG', { month: 'long' })} ${p.paymentForYear}` : (p.month || 'N/A');
+
                 return `
                     <tr class="border-b">
-                        <td class="py-2 px-4">${p.timestamp?.toDate().toLocaleDateString('ar-EG') || 'N/A'}</td>
+                        <td class="py-2 px-4">${paymentDate}</td>
                         <td class="py-2 px-4">${student?.name || 'طالب محذوف'}</td>
                         <td class="py-2 px-4">${group?.name || 'N/A'}</td>
                         <td class="py-2 px-4">${p.amount.toFixed(2)} جنيه</td>
-                        <td class="py-2 px-4">${p.month}</td>
+                        <td class="py-2 px-4">${paymentFor}</td>
                         <td class="py-2 px-4">${p.notes || ''}</td>
-                        <td class="py-2 px-4 no-print">
-                            <button onclick="deletePayment('${p.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                        <td class="py-2 px-4 no-print space-x-2 space-x-reverse">
+                            <button onclick="generateInvoice('${p.id}')" class="text-blue-500 hover:text-blue-700" title="طباعة فاتورة"><i class="fas fa-receipt"></i></button>
+                            <button onclick="deletePayment('${p.id}')" class="text-red-500 hover:text-red-700" title="حذف"><i class="fas fa-trash"></i></button>
                         </td>
                     </tr>
                 `;
@@ -1151,9 +1350,10 @@
                  <div id="payments-log-page" class="page">
                     <div class="flex justify-between items-center mb-6 no-print">
                         <h2 class="text-3xl font-bold">سجل المدفوعات</h2>
-                        <button onclick="printReport()" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"><i class="fas fa-print mr-2"></i> طباعة السجل</button>
+                        <button onclick="printReport('payments-log-page')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"><i class="fas fa-print mr-2"></i> طباعة السجل</button>
                     </div>
                     <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto printable-area">
+                        <h3 class="text-xl font-bold mb-4 text-center print-only" style="display:none;">سجل المدفوعات</h3>
                         <table class="min-w-full bg-white">
                             <thead class="bg-gray-800 text-white">
                                 <tr>
@@ -1161,9 +1361,9 @@
                                     <th class="py-3 px-4 text-right">الطالب</th>
                                     <th class="py-3 px-4 text-right">المجموعة</th>
                                     <th class="py-3 px-4 text-right">المبلغ</th>
-                                    <th class="py-3 px-4 text-right">الشهر</th>
+                                    <th class="py-3 px-4 text-right">عن شهر/سنة</th>
                                     <th class="py-3 px-4 text-right">ملاحظات</th>
-                                    <th class="py-3 px-4 text-right no-print">إجراء</th>
+                                    <th class="py-3 px-4 text-right no-print">إجراءات</th>
                                 </tr>
                             </thead>
                             <tbody>${tableRows}</tbody>
@@ -1600,10 +1800,232 @@
         }
 
         // --- Generic Functions ---
-        window.printReport = function() {
+        window.printReport = function(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) {
+                console.error("Print container not found:", containerId);
+                return;
+            }
+
+            // The element to print is either the container itself or a child with the 'printable-area' class
+            const elementToPrint = container.classList.contains('printable-area')
+                ? container
+                : container.querySelector('.printable-area');
+
+            if (!elementToPrint) {
+                console.error("Printable element not found in container:", containerId);
+                return;
+            }
+
+            // Find all other elements with 'printable-area' and temporarily remove the class
+            const otherPrintableAreas = document.querySelectorAll('.printable-area');
+            const areasToRestore = [];
+            otherPrintableAreas.forEach(area => {
+                if (area !== elementToPrint) {
+                    area.classList.remove('printable-area');
+                    areasToRestore.push(area);
+                }
+            });
+
             window.print();
+
+            // Restore the classes. The print dialog is modal, so this runs after it's closed.
+            areasToRestore.forEach(area => {
+                area.classList.add('printable-area');
+            });
+        }
+        // --- Invoice Generation ---
+        window.generateInvoice = function(paymentId) {
+            const payment = appData.payments.find(p => p.id === paymentId);
+            if (!payment) {
+                alert("لم يتم العثور على الدفعة.");
+                return;
+            }
+
+            const student = appData.students.find(s => s.id === payment.studentId);
+            const group = appData.groups.find(g => g.id === payment.groupId);
+            const paymentFor = payment.paymentForYear ? `${new Date(0, payment.paymentForMonth - 1).toLocaleString('ar-EG', { month: 'long' })} ${payment.paymentForYear}` : (payment.month || 'N/A');
+
+            const modalContent = `
+                <div class="printable-area p-8" id="invoice-content">
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold">Master English Center</h2>
+                        <p class="text-gray-500">إيصال استلام نقدية</p>
+                    </div>
+                    <div class="flex justify-between mb-8">
+                        <div>
+                            <p><strong>التاريخ:</strong> ${new Date(payment.paymentDate).toLocaleDateString('ar-EG')}</p>
+                            <p><strong>رقم الإيصال:</strong> ${payment.id.slice(0, 8)}</p>
+                        </div>
+                        <div>
+                            <p><strong>استلمنا من الطالب/ة:</strong></p>
+                            <p class="text-xl font-semibold">${student?.name || 'غير متوفر'}</p>
+                        </div>
+                    </div>
+                    <table class="min-w-full mb-8">
+                        <thead class="bg-gray-200">
+                            <tr>
+                                <th class="py-2 px-4 text-right">البيان</th>
+                                <th class="py-2 px-4 text-right">المبلغ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b">
+                                <td class="py-2 px-4">مصاريف شهر ${paymentFor}</td>
+                                <td class="py-2 px-4">${payment.amount.toFixed(2)} جنيه</td>
+                            </tr>
+                        </tbody>
+                        <tfoot class="font-bold">
+                            <tr>
+                                <td class="py-2 px-4 text-right">الإجمالي</td>
+                                <td class="py-2 px-4">${payment.amount.toFixed(2)} جنيه</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                     <div class="text-left mb-8">
+                        <p><strong>فقط:</strong> ${TAFQIT.inWords(payment.amount)} جنيه مصري لا غير.</p>
+                    </div>
+                    <div class="flex justify-between items-center text-sm text-gray-600">
+                        <p>المستلم: ${currentUserData.name}</p>
+                        <p>توقيع المستلم: ........................</p>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-4 space-x-reverse mt-6 no-print">
+                    <button type="button" onclick="closeModal('invoice-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إغلاق</button>
+                    <button type="button" onclick="printReport('invoice-content')" class="bg-blue-500 text-white px-6 py-2 rounded-lg">طباعة</button>
+                </div>
+            `;
+            renderModal('invoice-modal', modalContent, 'max-w-3xl');
         }
         
+        // --- Reports Page ---
+        function renderReportsPage() {
+            const container = document.getElementById('page-content');
+            const currentYear = new Date().getFullYear();
+            const currentMonth = new Date().getMonth() + 1;
+
+            const monthsOptions = Array.from({length: 12}, (_, i) => {
+                const month = i + 1;
+                return `<option value="${month}" ${month === currentMonth ? 'selected' : ''}>${new Date(0, i).toLocaleString('ar-EG', { month: 'long' })}</option>`;
+            }).join('');
+
+            const yearsOptions = Array.from({length: 5}, (_, i) => {
+                const year = currentYear - 2 + i;
+                return `<option value="${year}" ${year === currentYear ? 'selected' : ''}>${year}</option>`;
+            }).join('');
+
+            let visibleGroups = appData.groups;
+            if (currentUserData.role === 'teacher' && !currentUserData.role === 'admin') {
+                visibleGroups = appData.groups.filter(g => g.teacherId === currentTeacherDoc.id);
+            }
+            const groupOptions = visibleGroups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+
+            container.innerHTML = `
+                <div id="reports-page" class="page">
+                    <h2 class="text-3xl font-bold mb-6">التقارير المالية والتحليلات</h2>
+
+                    <div class="bg-white p-6 rounded-lg shadow-md no-print">
+                        <h3 class="text-xl font-bold mb-4">تقرير الطلاب غير المسددين</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                            <div>
+                                <label for="report-month" class="block text-sm font-medium text-gray-700">الشهر</label>
+                                <select id="report-month" class="p-2 border rounded-lg w-full mt-1">${monthsOptions}</select>
+                            </div>
+                            <div>
+                                <label for="report-year" class="block text-sm font-medium text-gray-700">السنة</label>
+                                <select id="report-year" class="p-2 border rounded-lg w-full mt-1">${yearsOptions}</select>
+                            </div>
+                            <div>
+                                <label for="report-group" class="block text-sm font-medium text-gray-700">المجموعة (اختياري)</label>
+                                <select id="report-group" class="p-2 border rounded-lg w-full mt-1">
+                                    <option value="">كل المجموعات</option>
+                                    ${groupOptions}
+                                </select>
+                            </div>
+                            <button onclick="handleUnpaidStudentsReport()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 h-10">إنشاء التقرير</button>
+                        </div>
+                    </div>
+
+                    <div id="report-results-container" class="mt-8">
+                        <!-- Report results will be rendered here -->
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleUnpaidStudentsReport() {
+            const month = parseInt(document.getElementById('report-month').value);
+            const year = parseInt(document.getElementById('report-year').value);
+            const groupId = document.getElementById('report-group').value;
+            const resultsContainer = document.getElementById('report-results-container');
+
+            resultsContainer.innerHTML = '<div class="text-center py-4">جاري إنشاء التقرير...</div>';
+
+            // 1. Get all students for the selected scope (all or a specific group)
+            let targetStudents = appData.students;
+            if (groupId) {
+                targetStudents = appData.students.filter(s => s.groupId === groupId);
+            } else if (currentUserData.role === 'teacher' && currentUserData.role !== 'admin') {
+                const teacherGroupIds = appData.groups.map(g => g.id);
+                targetStudents = appData.students.filter(s => teacherGroupIds.includes(s.groupId));
+            }
+
+            // 2. Get IDs of students who have paid for the selected month and year
+            const paidStudentIds = new Set();
+            appData.payments.forEach(p => {
+                if (p.paymentForMonth === month && p.paymentForYear === year) {
+                    paidStudentIds.add(p.studentId);
+                }
+            });
+
+            // 3. Filter to find students who have NOT paid
+            const unpaidStudents = targetStudents.filter(s => !paidStudentIds.has(s.id));
+
+            // 4. Render the results table
+            if (unpaidStudents.length === 0) {
+                resultsContainer.innerHTML = '<div class="bg-white p-6 rounded-lg shadow-md text-center text-green-600 font-bold">كل الطلاب في النطاق المحدد قد سددوا لهذا الشهر.</div>';
+                return;
+            }
+
+            let tableRows = unpaidStudents.map(student => {
+                const group = appData.groups.find(g => g.id === student.groupId);
+                return `
+                    <tr class="border-b">
+                        <td class="py-2 px-4">${student.studentCode || 'N/A'}</td>
+                        <td class="py-2 px-4">${student.name}</td>
+                        <td class="py-2 px-4">${group?.name || 'غير مسجل'}</td>
+                        <td class="py-2 px-4">${student.phone}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            const monthName = new Date(0, month - 1).toLocaleString('ar-EG', { month: 'long' });
+            const groupName = groupId ? appData.groups.find(g=>g.id===groupId).name : 'كل المجموعات';
+
+            resultsContainer.innerHTML = `
+                <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto printable-area">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h3 class="text-xl font-bold">تقرير الطلاب غير المسددين عن: ${monthName} ${year}</h3>
+                            <p class="text-gray-600">المجموعة: ${groupName}</p>
+                        </div>
+                        <button onclick="printReport()" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 no-print"><i class="fas fa-print mr-2"></i> طباعة</button>
+                    </div>
+                    <table class="min-w-full bg-white">
+                        <thead class="bg-gray-800 text-white">
+                            <tr>
+                                <th class="py-3 px-4 text-right">الكود</th>
+                                <th class="py-3 px-4 text-right">الاسم</th>
+                                <th class="py-3 px-4 text-right">المجموعة</th>
+                                <th class="py-3 px-4 text-right">الهاتف</th>
+                            </tr>
+                        </thead>
+                        <tbody>${tableRows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
     </script>
 </body>
 </html>
