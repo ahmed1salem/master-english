@@ -197,7 +197,7 @@
                 
                 <!-- All Pages will be rendered here -->
                 <div id="page-content">
-                    <!-- Dashboard Page is loaded by default -->
+                    <!-- Dynamic Page Content Loads Here -->
                 </div>
 
                 <footer class="text-center text-gray-500 text-sm mt-8 pb-4 no-print">
@@ -207,7 +207,9 @@
         </div>
     </div>
 
-    <!-- All Modals are here -->
+    <!-- Modals Container -->
+    <div id="modals-container"></div>
+
 
     <script type="module">
         // Import Firebase modules
@@ -238,6 +240,15 @@
         let currentUser = null;
         let currentUserData = null;
         let unsubscribeListeners = []; // To detach listeners on logout
+        let appData = {
+            students: [],
+            teachers: [],
+            groups: [],
+            payments: [],
+            attendance: [],
+            exams: []
+        };
+        let currentPage = 'dashboard';
 
         // --- TRANSLATION DATA & LOGIC ---
         const translations = {
@@ -466,8 +477,9 @@
         // --- REAL-TIME DATA LISTENERS ---
         function setupRealtimeListeners() {
             cleanupListeners(); // Clear old listeners before setting new ones
+            const isAdmin = currentUserData.role === 'admin';
 
-            if(currentUserData.role === 'admin') {
+            if (isAdmin) {
                 // Admin: Listen to all registration requests
                 const requestsQuery = query(collection(db, "users"), where("role", "==", "pending"));
                 const unsubscribeRequests = onSnapshot(requestsQuery, (snapshot) => {
@@ -475,15 +487,22 @@
                     const badge = document.getElementById('requests-count-badge');
                     badge.textContent = count;
                     badge.style.display = count > 0 ? 'flex' : 'none';
-                    // If the user is on the requests page, refresh it
-                    if (document.getElementById('requests')) {
+                    if (currentPage === 'requests') {
                         renderRequestsPage(snapshot.docs);
                     }
                 });
                 unsubscribeListeners.push(unsubscribeRequests);
             }
-            
-            // Add more listeners here for students, groups, etc., as needed for real-time updates
+
+            // Define collections to listen to
+            const collections = ['students', 'teachers', 'groups', 'payments', 'attendance', 'exams'];
+            collections.forEach(col => {
+                const unsubscribe = onSnapshot(collection(db, col), (snapshot) => {
+                    appData[col] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderCurrentPage(); // Re-render the current page with new data
+                });
+                unsubscribeListeners.push(unsubscribe);
+            });
         }
 
         function cleanupListeners() {
@@ -491,18 +510,35 @@
             unsubscribeListeners = [];
         }
 
+        function renderCurrentPage() {
+            // This function is called whenever data changes
+            switch (currentPage) {
+                case 'dashboard':
+                    renderDashboardPage();
+                    break;
+                case 'students':
+                    renderStudentsPageContent();
+                    break;
+                // Add cases for other pages to auto-update them
+                case 'teachers':
+                    renderTeachersPageContent();
+                    break;
+                case 'groups':
+                    renderGroupsPageContent();
+                    break;
+            }
+        }
+
         // --- PAGE ROUTING & RENDERING ---
         window.showPage = function(pageId) {
+            currentPage = pageId;
             const pageContent = document.getElementById('page-content');
             
             // Very simple router
             switch(pageId) {
                 case 'dashboard':
-                    pageContent.innerHTML = `
-                        <div id="dashboard" class="page">
-                            <h2 class="text-3xl font-bold mb-6">الرئيسية</h2>
-                        </div>`;
-                    // Load dashboard data here
+                    pageContent.innerHTML = `<div id="dashboard-page" class="page"></div>`;
+                    renderDashboardPage();
                     break;
                 case 'requests':
                     if (currentUserData.role !== 'admin') return;
@@ -510,14 +546,23 @@
                         <div id="requests" class="page">
                             <h2 class="text-3xl font-bold mb-6">طلبات التسجيل</h2>
                             <div id="requests-list" class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-                                <!-- Requests will be rendered here by the listener -->
                                 <p>جاري تحميل الطلبات...</p>
                             </div>
                         </div>`;
                      // The onSnapshot listener will call renderRequestsPage
                     break;
-                // Add cases for other pages: students, teachers, etc.
-                // For now, they are placeholders
+                case 'students':
+                    pageContent.innerHTML = `<div id="students-page" class="page"></div>`;
+                    renderStudentsPageContent();
+                    break;
+                case 'teachers':
+                     pageContent.innerHTML = `<div id="teachers-page" class="page"></div>`;
+                    renderTeachersPageContent();
+                    break;
+                case 'groups':
+                    pageContent.innerHTML = `<div id="groups-page" class="page"></div>`;
+                    renderGroupsPageContent();
+                    break;
                 default:
                     pageContent.innerHTML = `<div class="page"><h2 class="text-3xl font-bold mb-6">${pageId}</h2><p>هذه الصفحة تحت الإنشاء.</p></div>`;
             }
@@ -528,6 +573,162 @@
             }
         }
         
+        // --- PAGE CONTENT RENDERERS ---
+
+        function renderDashboardPage() {
+            const container = document.getElementById('dashboard-page');
+            if (!container) return;
+
+            const today = new Date().toISOString().slice(0, 10);
+            const todayAttendance = appData.attendance.filter(a => a.timestamp?.toDate().toISOString().slice(0, 10) === today).length;
+
+            container.innerHTML = `
+                <h2 class="text-3xl font-bold mb-6">الرئيسية</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-600">إجمالي الطلاب</h3>
+                        <p class="text-4xl font-bold mt-2">${appData.students.length}</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-600">إجمالي المجموعات</h3>
+                        <p class="text-4xl font-bold mt-2">${appData.groups.length}</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-600">إجمالي المدرسين</h3>
+                        <p class="text-4xl font-bold mt-2">${appData.teachers.length}</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-600">الحضور اليوم</h3>
+                        <p class="text-4xl font-bold mt-2">${todayAttendance}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderStudentsPageContent() {
+            const container = document.getElementById('students-page');
+            if (!container) return;
+            
+            let tableRows = '';
+            appData.students.forEach(student => {
+                const group = appData.groups.find(g => g.id === student.groupId);
+                tableRows += `
+                     <tr class="border-b">
+                        <td class="py-2 px-4">${student.studentCode || 'N/A'}</td>
+                        <td class="py-2 px-4">${student.name}</td>
+                        <td class="py-2 px-4">${student.grade}</td>
+                        <td class="py-2 px-4">${student.phone}</td>
+                        <td class="py-2 px-4">${group?.name || 'غير مسجل'}</td>
+                        <td class="py-2 px-4 space-x-2 space-x-reverse">
+                            <button class="text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
+                            <button class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            container.innerHTML = `
+                <h2 class="text-3xl font-bold mb-6">إدارة الطلاب</h2>
+                <button class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 mb-4"><i class="fas fa-plus mr-2"></i> إضافة طالب جديد</button>
+                <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+                    <table class="min-w-full bg-white">
+                        <thead class="bg-gray-800 text-white">
+                            <tr>
+                                <th class="py-3 px-4 text-right">الكود</th>
+                                <th class="py-3 px-4 text-right">الاسم</th>
+                                <th class="py-3 px-4 text-right">المرحلة</th>
+                                <th class="py-3 px-4 text-right">الهاتف</th>
+                                <th class="py-3 px-4 text-right">المجموعة</th>
+                                <th class="py-3 px-4 text-right">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>${tableRows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+        
+        function renderTeachersPageContent() {
+            const container = document.getElementById('teachers-page');
+            if (!container) return;
+
+            let tableRows = '';
+            appData.teachers.forEach(teacher => {
+                tableRows += `
+                    <tr class="border-b">
+                        <td class="py-2 px-4">${teacher.name}</td>
+                        <td class="py-2 px-4">${teacher.subject}</td>
+                        <td class="py-2 px-4">${teacher.phone || 'N/A'}</td>
+                        <td class="py-2 px-4 space-x-2 space-x-reverse">
+                            <button class="text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
+                            <button class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            container.innerHTML = `
+                 <h2 class="text-3xl font-bold mb-6">إدارة المدرسين</h2>
+                <button class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 mb-4"><i class="fas fa-plus mr-2"></i> إضافة مدرس جديد</button>
+                <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+                    <table class="min-w-full bg-white">
+                        <thead class="bg-gray-800 text-white">
+                            <tr>
+                                <th class="py-3 px-4 text-right">الاسم</th>
+                                <th class="py-3 px-4 text-right">المادة</th>
+                                <th class="py-3 px-4 text-right">الهاتف</th>
+                                <th class="py-3 px-4 text-right">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>${tableRows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderGroupsPageContent() {
+             const container = document.getElementById('groups-page');
+            if (!container) return;
+
+             let tableRows = '';
+            appData.groups.forEach(group => {
+                const teacher = appData.teachers.find(t => t.id === group.teacherId);
+                tableRows += `
+                    <tr class="border-b">
+                        <td class="py-2 px-4">${group.name}</td>
+                        <td class="py-2 px-4">${teacher?.name || 'غير محدد'}</td>
+                        <td class="py-2 px-4">${group.price || 0}</td>
+                        <td class="py-2 px-4">${group.schedule?.days?.join(', ') || 'N/A'}</td>
+                        <td class="py-2 px-4">${group.schedule?.time || 'N/A'}</td>
+                        <td class="py-2 px-4 space-x-2 space-x-reverse">
+                            <button class="text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
+                            <button class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            container.innerHTML = `
+                <h2 class="text-3xl font-bold mb-6">إدارة المجموعات</h2>
+                <button class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 mb-4"><i class="fas fa-plus mr-2"></i> إضافة مجموعة جديدة</button>
+                <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+                    <table class="min-w-full bg-white">
+                        <thead class="bg-gray-800 text-white">
+                            <tr>
+                                <th class="py-3 px-4 text-right">اسم المجموعة</th>
+                                <th class="py-3 px-4 text-right">المدرس</th>
+                                <th class="py-3 px-4 text-right">السعر</th>
+                                <th class="py-3 px-4 text-right">الأيام</th>
+                                <th class="py-3 px-4 text-right">الساعة</th>
+                                <th class="py-3 px-4 text-right">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>${tableRows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
         // --- ADMIN-SPECIFIC FUNCTIONS ---
         function renderRequestsPage(requestDocs) {
             const container = document.getElementById('requests-list');
@@ -601,4 +802,3 @@
     </script>
 </body>
 </html>
-
