@@ -673,34 +673,7 @@
         
         function renderStudentsPageContent() {
             const container = document.getElementById('page-content');
-            let tableRows = '';
-            appData.students.forEach(student => {
-                let groupNames = 'غير مسجل';
-                // Handle both new `groupIds` (array) and old `groupId` (string)
-                const groupIds = Array.isArray(student.groupIds) ? student.groupIds : (student.groupId ? [student.groupId] : []);
-
-                if (groupIds.length > 0) {
-                    groupNames = groupIds.map(id => {
-                        const group = appData.groups.find(g => g.id === id);
-                        return group ? group.name : 'مجموعة محذوفة';
-                    }).join(', ');
-                }
-
-                tableRows += `
-                     <tr class="border-b">
-                        <td class="py-2 px-4">${student.studentCode || 'N/A'}</td>
-                        <td class="py-2 px-4">${student.name}</td>
-                        <td class="py-2 px-4">${student.grade}</td>
-                        <td class="py-2 px-4">${student.phone}</td>
-                        <td class="py-2 px-4">${groupNames}</td>
-                        <td class="py-2 px-4 space-x-2 space-x-reverse no-print">
-                            <button onclick="generateStudentReport('${student.id}')" class="text-green-500 hover:text-green-700" title="تقرير شامل"><i class="fas fa-address-card"></i></button>
-                            <button onclick="openStudentModal('${student.id}')" class="text-blue-500 hover:text-blue-700" title="تعديل"><i class="fas fa-edit"></i></button>
-                            <button onclick="deleteStudent('${student.id}')" class="text-red-500 hover:text-red-700" title="حذف"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `;
-            });
+            const groupOptions = appData.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
 
             container.innerHTML = `
                 <div id="students-page" class="page">
@@ -711,6 +684,18 @@
                             <button onclick="openStudentModal()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"><i class="fas fa-plus mr-2"></i> إضافة طالب جديد</button>
                         </div>
                     </div>
+
+                    <!-- Search and Filter Bar -->
+                    <div class="bg-white p-4 rounded-lg shadow-md mb-6 no-print">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <input type="text" id="student-search-input" placeholder="ابحث بالاسم أو الكود..." class="p-2 border rounded-lg w-full">
+                            <select id="student-group-filter" class="p-2 border rounded-lg w-full">
+                                <option value="">كل المجموعات</option>
+                                ${groupOptions}
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto printable-area">
                         <table id="students-table" class="min-w-full bg-white">
                             <thead class="bg-gray-800 text-white">
@@ -719,15 +704,67 @@
                                     <th class="py-3 px-4 text-right">الاسم</th>
                                     <th class="py-3 px-4 text-right">المرحلة</th>
                                     <th class="py-3 px-4 text-right">الهاتف</th>
-                                    <th class="py-3 px-4 text-right">المجموعة</th>
+                                    <th class="py-3 px-4 text-right">المجموعات</th>
                                     <th class="py-3 px-4 text-right no-print">إجراءات</th>
                                 </tr>
                             </thead>
-                            <tbody>${tableRows}</tbody>
+                            <tbody id="students-table-body"></tbody>
                         </table>
                     </div>
                 </div>
             `;
+
+            // Initial render
+            filterAndRenderStudents();
+
+            // Add event listeners
+            document.getElementById('student-search-input').addEventListener('input', filterAndRenderStudents);
+            document.getElementById('student-group-filter').addEventListener('change', filterAndRenderStudents);
+        }
+
+        function filterAndRenderStudents() {
+            const searchTerm = document.getElementById('student-search-input').value.toLowerCase();
+            const selectedGroupId = document.getElementById('student-group-filter').value;
+            const tableBody = document.getElementById('students-table-body');
+
+            const filteredStudents = appData.students.filter(student => {
+                const nameMatch = student.name.toLowerCase().includes(searchTerm);
+                const codeMatch = student.studentCode?.toLowerCase().includes(searchTerm);
+
+                const groupIds = Array.isArray(student.groupIds) ? student.groupIds : (student.groupId ? [student.groupId] : []);
+                const groupMatch = !selectedGroupId || groupIds.includes(selectedGroupId);
+
+                return (nameMatch || codeMatch) && groupMatch;
+            });
+
+            let tableRows = '';
+            if (filteredStudents.length === 0) {
+                tableRows = '<tr><td colspan="6" class="text-center py-4 text-gray-500">لا توجد نتائج تطابق بحثك.</td></tr>';
+            } else {
+                filteredStudents.forEach(student => {
+                    let groupNames = 'غير مسجل';
+                    const groupIds = Array.isArray(student.groupIds) ? student.groupIds : (student.groupId ? [student.groupId] : []);
+                    if (groupIds.length > 0) {
+                        groupNames = groupIds.map(id => appData.groups.find(g => g.id === id)?.name || 'مجموعة محذوفة').join(', ');
+                    }
+
+                    tableRows += `
+                        <tr class="border-b">
+                            <td class="py-2 px-4">${student.studentCode || 'N/A'}</td>
+                            <td class="py-2 px-4">${student.name}</td>
+                            <td class="py-2 px-4">${student.grade}</td>
+                            <td class="py-2 px-4">${student.phone}</td>
+                            <td class="py-2 px-4">${groupNames}</td>
+                            <td class="py-2 px-4 space-x-2 space-x-reverse no-print">
+                                <button onclick="generateStudentReport('${student.id}')" class="text-green-500 hover:text-green-700" title="تقرير شامل"><i class="fas fa-address-card"></i></button>
+                                <button onclick="openStudentModal('${student.id}')" class="text-blue-500 hover:text-blue-700" title="تعديل"><i class="fas fa-edit"></i></button>
+                                <button onclick="deleteStudent('${student.id}')" class="text-red-500 hover:text-red-700" title="حذف"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+            tableBody.innerHTML = tableRows;
         }
         
         function renderTeachersPageContent() {
@@ -2124,67 +2161,85 @@
         function handleUnpaidStudentsReport() {
             const month = parseInt(document.getElementById('report-month').value);
             const year = parseInt(document.getElementById('report-year').value);
-            const groupId = document.getElementById('report-group').value;
+            const filterGroupId = document.getElementById('report-group').value; // This is the group we are filtering by
             const resultsContainer = document.getElementById('report-results-container');
 
             resultsContainer.innerHTML = '<div class="text-center py-4">جاري إنشاء التقرير...</div>';
 
-            // 1. Get all students for the selected scope (all or a specific group)
-            let targetStudents = appData.students;
-            if (groupId) {
-                targetStudents = appData.students.filter(s => s.groupId === groupId);
-            } else if (currentUserData.role === 'teacher' && currentUserData.role !== 'admin') {
+            const unpaidEntries = [];
+
+            // Determine which students to iterate over.
+            let studentsToCheck = appData.students;
+            if (currentUserData.role === 'teacher' && !currentUserData.role === 'admin') {
                 const teacherGroupIds = appData.groups.map(g => g.id);
-                targetStudents = appData.students.filter(s => teacherGroupIds.includes(s.groupId));
+                studentsToCheck = appData.students.filter(s => {
+                    const studentGroupIds = Array.isArray(s.groupIds) ? s.groupIds : (s.groupId ? [s.groupId] : []);
+                    return studentGroupIds.some(sgid => teacherGroupIds.includes(sgid));
+                });
             }
 
-            // 2. Get IDs of students who have paid for the selected month and year
-            const paidStudentIds = new Set();
-            appData.payments.forEach(p => {
-                if (p.paymentForMonth === month && p.paymentForYear === year) {
-                    paidStudentIds.add(p.studentId);
-                }
+            studentsToCheck.forEach(student => {
+                const studentGroupIds = Array.isArray(student.groupIds) ? student.groupIds : (student.groupId ? [student.groupId] : []);
+
+                studentGroupIds.forEach(studentGroupId => {
+                    // If a specific group is selected for the report, and this isn't it, skip.
+                    if (filterGroupId && studentGroupId !== filterGroupId) {
+                        return; // continue
+                    }
+
+                    // Check if a payment exists for this specific student, for this specific group, for this specific month/year.
+                    const hasPaid = appData.payments.some(p =>
+                        p.studentId === student.id &&
+                        p.groupId === studentGroupId &&
+                        p.paymentForMonth === month &&
+                        p.paymentForYear === year
+                    );
+
+                    if (!hasPaid) {
+                        unpaidEntries.push({
+                            student: student,
+                            group: appData.groups.find(g => g.id === studentGroupId)
+                        });
+                    }
+                });
             });
 
-            // 3. Filter to find students who have NOT paid
-            const unpaidStudents = targetStudents.filter(s => !paidStudentIds.has(s.id));
-
-            // 4. Render the results table
-            if (unpaidStudents.length === 0) {
+            // Render the results table
+            if (unpaidEntries.length === 0) {
                 resultsContainer.innerHTML = '<div class="bg-white p-6 rounded-lg shadow-md text-center text-green-600 font-bold">كل الطلاب في النطاق المحدد قد سددوا لهذا الشهر.</div>';
                 return;
             }
 
-            let tableRows = unpaidStudents.map(student => {
-                const group = appData.groups.find(g => g.id === student.groupId);
+            let tableRows = unpaidEntries.map(entry => {
+                const { student, group } = entry;
                 return `
                     <tr class="border-b">
                         <td class="py-2 px-4">${student.studentCode || 'N/A'}</td>
                         <td class="py-2 px-4">${student.name}</td>
-                        <td class="py-2 px-4">${group?.name || 'غير مسجل'}</td>
-                        <td class="py-2 px-4">${student.phone}</td>
+                        <td class="py-2 px-4">${group?.name || 'مجموعة محذوفة'}</td>
+                        <td class="py-2 px-4">${student.phone || 'N/A'}</td>
                     </tr>
                 `;
             }).join('');
 
             const monthName = new Date(0, month - 1).toLocaleString('ar-EG', { month: 'long' });
-            const groupName = groupId ? appData.groups.find(g=>g.id===groupId).name : 'كل المجموعات';
+            const groupName = filterGroupId ? appData.groups.find(g=>g.id===filterGroupId).name : 'كل المجموعات';
 
             resultsContainer.innerHTML = `
-                <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto printable-area">
+                <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto printable-area" id="unpaid-report-printable">
                     <div class="flex justify-between items-center mb-4">
                         <div>
                             <h3 class="text-xl font-bold">تقرير الطلاب غير المسددين عن: ${monthName} ${year}</h3>
                             <p class="text-gray-600">المجموعة: ${groupName}</p>
                         </div>
-                        <button onclick="printReport()" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 no-print"><i class="fas fa-print mr-2"></i> طباعة</button>
+                        <button onclick="printReport('unpaid-report-printable')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 no-print"><i class="fas fa-print mr-2"></i> طباعة</button>
                     </div>
                     <table class="min-w-full bg-white">
                         <thead class="bg-gray-800 text-white">
                             <tr>
                                 <th class="py-3 px-4 text-right">الكود</th>
                                 <th class="py-3 px-4 text-right">الاسم</th>
-                                <th class="py-3 px-4 text-right">المجموعة</th>
+                                <th class="py-3 px-4 text-right">المجموعة المستحقة</th>
                                 <th class="py-3 px-4 text-right">الهاتف</th>
                             </tr>
                         </thead>
