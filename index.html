@@ -215,7 +215,7 @@
         // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, collection, getDocs, onSnapshot, updateDoc, where, query, addDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, getDocs, onSnapshot, updateDoc, where, query, addDoc, deleteDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
         //
         // <<<--- ألصق كود إعدادات Firebase الخاص بك هنا --->>>
@@ -238,9 +238,10 @@
 
         // --- GLOBAL STATE ---
         let currentUser = null;
-        let currentUserData = null;
+        let currentUserData = null; // Data from 'users' collection
+        let currentTeacherDoc = null; // Data from 'teachers' collection, if user is a teacher
         let unsubscribeListeners = []; // To detach listeners on logout
-        let appData = {
+        let appData = { // This will hold all the data the user is allowed to see
             students: [],
             teachers: [],
             groups: [],
@@ -274,7 +275,6 @@
                 nav_payments_log: "Payments Log",
                 nav_groups: "Groups",
                 nav_exams: "Exams",
-                // ... add more translations as needed
             },
             ar: {
                 app_title: "نظام إدارة Master English",
@@ -298,7 +298,6 @@
                 nav_payments_log: "سجل المدفوعات",
                 nav_groups: "المجموعات",
                 nav_exams: "الامتحانات",
-                 // ... add more translations as needed
             }
         };
 
@@ -374,6 +373,14 @@
                     if (currentUserData.role === 'pending') {
                         showScreen('pending-approval');
                     } else {
+                        // If user is a teacher, get their specific teacher document
+                        if (currentUserData.role === 'teacher') {
+                            const teacherQuery = query(collection(db, "teachers"), where("userId", "==", user.uid));
+                            const teacherSnapshot = await getDocs(teacherQuery);
+                            if (!teacherSnapshot.empty) {
+                                currentTeacherDoc = { id: teacherSnapshot.docs[0].id, ...teacherSnapshot.docs[0].data() };
+                            }
+                        }
                         initializeAppUI();
                         showScreen('app');
                     }
@@ -384,6 +391,7 @@
             } else {
                 currentUser = null;
                 currentUserData = null;
+                currentTeacherDoc = null;
                 showScreen('auth');
                 cleanupListeners();
             }
@@ -402,15 +410,13 @@
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
                 
-                // Create a user document in Firestore
                 await setDoc(doc(db, "users", user.uid), {
                     uid: user.uid,
                     name: name,
                     email: email,
-                    role: 'pending', // All new users are pending approval
-                    createdAt: new Date()
+                    role: 'pending', 
+                    createdAt: serverTimestamp()
                 });
-                // The onAuthStateChanged listener will handle the UI switch
             } catch (error) {
                 console.error("Signup error:", error);
                 errorEl.textContent = "فشل إنشاء الحساب. " + error.message;
@@ -426,7 +432,6 @@
             
             try {
                 await signInWithEmailAndPassword(auth, email, password);
-                // onAuthStateChanged will handle the rest
             } catch (error) {
                 console.error("Login error:", error);
                 errorEl.textContent = "البريد الإلكتروني أو كلمة المرور غير صحيحة.";
@@ -435,7 +440,6 @@
         
         window.handleLogout = async function() {
             await signOut(auth);
-            // onAuthStateChanged will handle UI changes
         }
 
         function showScreen(screenName) {
@@ -455,120 +459,138 @@
 
         // --- APP UI INITIALIZATION ---
         function initializeAppUI() {
-            // Set user info in sidebar
             document.getElementById('user-name').textContent = currentUserData.name;
             document.getElementById('user-email').textContent = currentUserData.email;
             document.getElementById('user-role').textContent = currentUserData.role;
             
-            // Show/hide UI elements based on role
             const isAdmin = currentUserData.role === 'admin';
             const isTeacher = currentUserData.role === 'teacher';
             
             document.querySelectorAll('.admin-only').forEach(el => el.style.display = isAdmin ? 'block' : 'none');
             document.querySelectorAll('.teacher-only').forEach(el => el.style.display = (isAdmin || isTeacher) ? 'block' : 'none');
 
-            // Load default page
-            showPage('dashboard');
-            
-            // Setup real-time listeners
             setupRealtimeListeners();
+            showPage('dashboard');
         }
 
         // --- REAL-TIME DATA LISTENERS ---
-        function setupRealtimeListeners() {
-            cleanupListeners(); // Clear old listeners before setting new ones
+        async function setupRealtimeListeners() {
+            cleanupListeners();
             const isAdmin = currentUserData.role === 'admin';
+            const isTeacher = currentUserData.role === 'teacher';
 
             if (isAdmin) {
-                // Admin: Listen to all registration requests
                 const requestsQuery = query(collection(db, "users"), where("role", "==", "pending"));
-                const unsubscribeRequests = onSnapshot(requestsQuery, (snapshot) => {
+                const unsubRequests = onSnapshot(requestsQuery, (snapshot) => {
                     const count = snapshot.size;
                     const badge = document.getElementById('requests-count-badge');
                     badge.textContent = count;
                     badge.style.display = count > 0 ? 'flex' : 'none';
-                    if (currentPage === 'requests') {
-                        renderRequestsPage(snapshot.docs);
+                    if (currentPage === 'requests') renderRequestsPage(snapshot.docs);
+                });
+                unsubscribeListeners.push(unsubRequests);
+
+                // Admin sees all data
+                ['students', 'teachers', 'groups', 'payments', 'attendance', 'exams'].forEach(col => {
+                    const unsub = onSnapshot(collection(db, col), (snapshot) => {
+                        appData[col] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        renderCurrentPage();
+                    });
+                    unsubscribeListeners.push(unsub);
+                });
+
+            } else if (isTeacher) {
+                if (!currentTeacherDoc) {
+                    console.error("Teacher document not found for this user.");
+                    return;
+                }
+                
+                // Teacher only sees their own groups
+                const groupsQuery = query(collection(db, "groups"), where("teacherId", "==", currentTeacherDoc.id));
+                const unsubGroups = onSnapshot(groupsQuery, (groupSnapshot) => {
+                    appData.groups = groupSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    const teacherGroupIds = appData.groups.map(g => g.id);
+
+                    // Unsubscribe from previous student/exam/etc listeners before creating new ones
+                    cleanupListeners(['groups']);
+
+                    if (teacherGroupIds.length > 0) {
+                        // Now get students, exams, etc. for ONLY these groups
+                        ['students', 'exams', 'attendance', 'payments'].forEach(col => {
+                            const dataQuery = query(collection(db, col), where("groupId", "in", teacherGroupIds));
+                            const unsub = onSnapshot(dataQuery, (snapshot) => {
+                                appData[col] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                                renderCurrentPage();
+                            });
+                            unsubscribeListeners.push(unsub);
+                        });
+                    } else {
+                        // Teacher has no groups, clear the data
+                        ['students', 'exams', 'attendance', 'payments'].forEach(col => appData[col] = []);
+                        renderCurrentPage();
                     }
                 });
-                unsubscribeListeners.push(unsubscribeRequests);
+                unsubscribeListeners.push(unsubGroups);
             }
-
-            // Define collections to listen to
-            const collections = ['students', 'teachers', 'groups', 'payments', 'attendance', 'exams'];
-            collections.forEach(col => {
-                const unsubscribe = onSnapshot(collection(db, col), (snapshot) => {
-                    appData[col] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    renderCurrentPage(); // Re-render the current page with new data
-                });
-                unsubscribeListeners.push(unsubscribe);
-            });
         }
 
-        function cleanupListeners() {
-            unsubscribeListeners.forEach(unsubscribe => unsubscribe());
+        function cleanupListeners(exclude = []) {
+            unsubscribeListeners.forEach(unsub => unsub());
             unsubscribeListeners = [];
         }
 
         function renderCurrentPage() {
-            // This function is called whenever data changes
-            switch (currentPage) {
-                case 'dashboard':
-                    renderDashboardPage();
-                    break;
-                case 'students':
-                    renderStudentsPageContent();
-                    break;
-                // Add cases for other pages to auto-update them
-                case 'teachers':
-                    renderTeachersPageContent();
-                    break;
-                case 'groups':
-                    renderGroupsPageContent();
-                    break;
+            if (typeof showPage === 'function') {
+                showPage(currentPage);
             }
         }
-
+        
         // --- PAGE ROUTING & RENDERING ---
         window.showPage = function(pageId) {
             currentPage = pageId;
             const pageContent = document.getElementById('page-content');
+            const isAdmin = currentUserData.role === 'admin';
             
-            // Very simple router
+            pageContent.innerHTML = ''; // Clear previous content
+
             switch(pageId) {
                 case 'dashboard':
                     pageContent.innerHTML = `<div id="dashboard-page" class="page"></div>`;
                     renderDashboardPage();
                     break;
                 case 'requests':
-                    if (currentUserData.role !== 'admin') return;
-                     pageContent.innerHTML = `
-                        <div id="requests" class="page">
-                            <h2 class="text-3xl font-bold mb-6">طلبات التسجيل</h2>
-                            <div id="requests-list" class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-                                <p>جاري تحميل الطلبات...</p>
-                            </div>
-                        </div>`;
-                     // The onSnapshot listener will call renderRequestsPage
+                    if (isAdmin) {
+                         pageContent.innerHTML = `
+                            <div id="requests" class="page">
+                                <h2 class="text-3xl font-bold mb-6">طلبات التسجيل</h2>
+                                <div id="requests-list" class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+                                    <p>جاري تحميل الطلبات...</p>
+                                </div>
+                            </div>`;
+                    }
                     break;
                 case 'students':
-                    pageContent.innerHTML = `<div id="students-page" class="page"></div>`;
-                    renderStudentsPageContent();
+                    if (isAdmin) {
+                        pageContent.innerHTML = `<div id="students-page" class="page"></div>`;
+                        renderStudentsPageContent();
+                    }
                     break;
                 case 'teachers':
-                     pageContent.innerHTML = `<div id="teachers-page" class="page"></div>`;
-                    renderTeachersPageContent();
+                     if (isAdmin) {
+                        pageContent.innerHTML = `<div id="teachers-page" class="page"></div>`;
+                        renderTeachersPageContent();
+                    }
                     break;
                 case 'groups':
                     pageContent.innerHTML = `<div id="groups-page" class="page"></div>`;
                     renderGroupsPageContent();
                     break;
+                // Add other pages here
                 default:
                     pageContent.innerHTML = `<div class="page"><h2 class="text-3xl font-bold mb-6">${pageId}</h2><p>هذه الصفحة تحت الإنشاء.</p></div>`;
             }
             
-            // Close mobile sidebar on navigation
-             if (window.innerWidth < 768) {
+            if (window.innerWidth < 768) {
                 document.getElementById('sidebar').classList.add('-translate-x-full');
             }
         }
@@ -595,7 +617,7 @@
                     </div>
                     <div class="bg-white p-6 rounded-lg shadow-md">
                         <h3 class="text-lg font-semibold text-gray-600">إجمالي المدرسين</h3>
-                        <p class="text-4xl font-bold mt-2">${appData.teachers.length}</p>
+                        <p class="text-4xl font-bold mt-2">${currentUserData.role === 'admin' ? appData.teachers.length : 'N/A'}</p>
                     </div>
                     <div class="bg-white p-6 rounded-lg shadow-md">
                         <h3 class="text-lg font-semibold text-gray-600">الحضور اليوم</h3>
@@ -689,6 +711,7 @@
         function renderGroupsPageContent() {
              const container = document.getElementById('groups-page');
             if (!container) return;
+            const isAdmin = currentUserData.role === 'admin';
 
              let tableRows = '';
             appData.groups.forEach(group => {
@@ -696,21 +719,21 @@
                 tableRows += `
                     <tr class="border-b">
                         <td class="py-2 px-4">${group.name}</td>
-                        <td class="py-2 px-4">${teacher?.name || 'غير محدد'}</td>
+                        <td class="py-2 px-4">${isAdmin ? (teacher?.name || 'غير محدد') : currentUserData.name}</td>
                         <td class="py-2 px-4">${group.price || 0}</td>
                         <td class="py-2 px-4">${group.schedule?.days?.join(', ') || 'N/A'}</td>
                         <td class="py-2 px-4">${group.schedule?.time || 'N/A'}</td>
-                        <td class="py-2 px-4 space-x-2 space-x-reverse">
+                        ${isAdmin ? `<td class="py-2 px-4 space-x-2 space-x-reverse">
                             <button class="text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
                             <button class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
-                        </td>
+                        </td>` : ''}
                     </tr>
                 `;
             });
 
             container.innerHTML = `
                 <h2 class="text-3xl font-bold mb-6">إدارة المجموعات</h2>
-                <button class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 mb-4"><i class="fas fa-plus mr-2"></i> إضافة مجموعة جديدة</button>
+                ${isAdmin ? `<button class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 mb-4"><i class="fas fa-plus mr-2"></i> إضافة مجموعة جديدة</button>` : ''}
                 <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
                     <table class="min-w-full bg-white">
                         <thead class="bg-gray-800 text-white">
@@ -720,7 +743,7 @@
                                 <th class="py-3 px-4 text-right">السعر</th>
                                 <th class="py-3 px-4 text-right">الأيام</th>
                                 <th class="py-3 px-4 text-right">الساعة</th>
-                                <th class="py-3 px-4 text-right">إجراءات</th>
+                                ${isAdmin ? `<th class="py-3 px-4 text-right">إجراءات</th>` : ''}
                             </tr>
                         </thead>
                         <tbody>${tableRows}</tbody>
@@ -732,7 +755,7 @@
         // --- ADMIN-SPECIFIC FUNCTIONS ---
         function renderRequestsPage(requestDocs) {
             const container = document.getElementById('requests-list');
-            if (!container) return; // Page not visible
+            if (!container) return;
             
             if (requestDocs.length === 0) {
                 container.innerHTML = '<p class="text-center text-gray-500">لا توجد طلبات تسجيل حاليًا.</p>';
@@ -753,14 +776,14 @@
             
             requestDocs.forEach(doc => {
                 const request = doc.data();
-                const requestDate = request.createdAt.toDate().toLocaleDateString('ar-EG');
+                const requestDate = request.createdAt?.toDate().toLocaleDateString('ar-EG') || 'N/A';
                 tableHtml += `
                     <tr class="border-b">
                         <td class="py-2 px-4">${request.name}</td>
                         <td class="py-2 px-4">${request.email}</td>
                         <td class="py-2 px-4">${requestDate}</td>
                         <td class="py-2 px-4 space-x-2 space-x-reverse">
-                            <button onclick="approveUser('${doc.id}')" class="bg-green-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-green-600">موافقة</button>
+                            <button onclick="approveUser('${doc.id}', '${request.name}')" class="bg-green-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-green-600">موافقة</button>
                             <button onclick="rejectUser('${doc.id}')" class="bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600">رفض</button>
                         </td>
                     </tr>`;
@@ -770,14 +793,30 @@
             container.innerHTML = tableHtml;
         }
 
-        window.approveUser = async function(userId) {
-            if (!confirm("هل أنت متأكد من الموافقة على هذا الحساب كـ 'مدرس'؟")) return;
+        window.approveUser = async function(userId, name) {
+            if (!confirm("هل أنت متأكد من الموافقة على هذا الحساب كـ 'مدرس'؟ سيتم إنشاء سجل له في جدول المدرسين.")) return;
+            
             const userDocRef = doc(db, "users", userId);
+            const teacherCollectionRef = collection(db, "teachers");
+
             try {
-                await updateDoc(userDocRef, {
-                    role: 'teacher' // Default approval role is teacher
+                // Use a batch write to ensure both operations succeed or fail together
+                const batch = writeBatch(db);
+                
+                // 1. Update user's role to 'teacher'
+                batch.update(userDocRef, { role: 'teacher' });
+
+                // 2. Create a new document in the 'teachers' collection
+                const newTeacherRef = doc(teacherCollectionRef); // Auto-generate ID
+                batch.set(newTeacherRef, {
+                    name: name,
+                    userId: userId, // Link to the user account
+                    subject: "Not specified",
+                    phone: ""
                 });
-                alert("تمت الموافقة على الحساب بنجاح.");
+
+                await batch.commit();
+                alert("تمت الموافقة على الحساب وإنشاء سجل المدرس بنجاح.");
             } catch (error) {
                 console.error("Error approving user:", error);
                 alert("حدث خطأ أثناء الموافقة.");
@@ -785,13 +824,10 @@
         }
         
         window.rejectUser = async function(userId) {
-            if (!confirm("هل أنت متأكد من رفض وحذف هذا الطلب؟ لا يمكن التراجع عن هذا الإجراء.")) return;
-            // For security, rejecting should probably delete the user from Auth and Firestore
-            // This is a simplified version that just deletes the Firestore doc
+            if (!confirm("هل أنت متأكد من رفض وحذف هذا الطلب؟ سيتم حذف بيانات المستخدم من قاعدة البيانات فقط (وليس من نظام المصادقة).")) return;
             const userDocRef = doc(db, "users", userId);
             try {
                 await deleteDoc(userDocRef);
-                // You would also need a backend function to delete the user from Firebase Auth
                 alert("تم رفض الطلب وحذفه.");
             } catch (error) {
                 console.error("Error rejecting user:", error);
