@@ -804,13 +804,384 @@
         }
 
         function renderExamsPage() {
-            // Implementation...
+            const container = document.getElementById('page-content');
+            let tableRows = '';
+            appData.exams.forEach(exam => {
+                const group = appData.groups.find(g => g.id === exam.groupId);
+                tableRows += `
+                    <tr class="border-b">
+                        <td class="py-2 px-4">${exam.name}</td>
+                        <td class="py-2 px-4">${group?.name || 'N/A'}</td>
+                        <td class="py-2 px-4">${exam.date}</td>
+                        <td class="py-2 px-4">${exam.maxScore}</td>
+                        <td class="py-2 px-4 space-x-2 space-x-reverse">
+                            <button onclick="openExamResultsModal('${exam.id}')" class="text-green-500 hover:text-green-700" title="عرض النتائج"><i class="fas fa-poll"></i></button>
+                            <button onclick="openExamModal('${exam.id}')" class="text-blue-500 hover:text-blue-700" title="تعديل"><i class="fas fa-edit"></i></button>
+                            <button onclick="deleteExam('${exam.id}')" class="text-red-500 hover:text-red-700" title="حذف"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            container.innerHTML = `
+                <div id="exams-page" class="page">
+                    <h2 class="text-3xl font-bold mb-6">إدارة الامتحانات</h2>
+                    <button onclick="openExamModal()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 mb-4"><i class="fas fa-plus mr-2"></i> إضافة امتحان جديد</button>
+                    <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-800 text-white">
+                                <tr>
+                                    <th class="py-3 px-4 text-right">اسم الامتحان</th>
+                                    <th class="py-3 px-4 text-right">المجموعة</th>
+                                    <th class="py-3 px-4 text-right">التاريخ</th>
+                                    <th class="py-3 px-4 text-right">الدرجة القصوى</th>
+                                    <th class="py-3 px-4 text-right">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>${tableRows}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
         }
+
+        // --- Exam CRUD ---
+        window.openExamModal = function(examId = null) {
+            const exam = examId ? appData.exams.find(e => e.id === examId) : null;
+            const title = exam ? 'تعديل امتحان' : 'إضافة امتحان جديد';
+
+            let groupsOptions = appData.groups.map(g => `<option value="${g.id}" ${exam?.groupId === g.id ? 'selected' : ''}>${g.name}</option>`).join('');
+
+            const modalContent = `
+                <h3 class="text-2xl font-bold mb-6">${title}</h3>
+                <form id="exam-form">
+                    <input type="hidden" id="exam-id-hidden" value="${exam?.id || ''}">
+                    <div class="space-y-4">
+                        <input type="text" id="exam-name" placeholder="اسم الامتحان" class="p-2 border rounded-lg w-full" value="${exam?.name || ''}" required>
+                        <select id="exam-group" class="p-2 border rounded-lg w-full" required>
+                            <option value="">-- اختر المجموعة --</option>
+                            ${groupsOptions}
+                        </select>
+                        <input type="date" id="exam-date" class="p-2 border rounded-lg w-full" value="${exam?.date || ''}" required>
+                        <input type="number" id="exam-max-score" placeholder="الدرجة القصوى" class="p-2 border rounded-lg w-full" value="${exam?.maxScore || ''}" required>
+                    </div>
+                    <div class="flex justify-end space-x-4 space-x-reverse mt-6">
+                        <button type="button" onclick="closeModal('exam-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إلغاء</button>
+                        <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-lg">حفظ</button>
+                    </div>
+                </form>
+            `;
+            renderModal('exam-modal', modalContent);
+            document.getElementById('exam-form').onsubmit = handleExamFormSubmit;
+        }
+
+        async function handleExamFormSubmit(event) {
+            event.preventDefault();
+            const examId = document.getElementById('exam-id-hidden').value;
+            const examData = {
+                name: document.getElementById('exam-name').value,
+                groupId: document.getElementById('exam-group').value,
+                date: document.getElementById('exam-date').value,
+                maxScore: parseFloat(document.getElementById('exam-max-score').value),
+            };
+
+            try {
+                if (examId) {
+                    await updateDoc(doc(db, "exams", examId), examData);
+                    alert('تم تحديث الامتحان بنجاح.');
+                } else {
+                    await addDoc(collection(db, "exams"), examData);
+                    alert('تمت إضافة الامتحان بنجاح.');
+                }
+                closeModal('exam-modal');
+            } catch (error) {
+                console.error("Error saving exam:", error);
+                alert("فشل حفظ الامتحان.");
+            }
+        }
+
+        window.deleteExam = async function(examId) {
+            if (!confirm("هل أنت متأكد من حذف هذا الامتحان؟ سيتم حذف كل النتائج المرتبطة به.")) return;
+            try {
+                // Also delete results subcollection (more complex, requires batch or cloud function for full cleanup)
+                await deleteDoc(doc(db, "exams", examId));
+                alert("تم حذف الامتحان بنجاح.");
+            } catch (error) {
+                console.error("Error deleting exam:", error);
+                alert("فشل حذف الامتحان.");
+            }
+        }
+
+        // --- Exam Results ---
+        window.openExamResultsModal = async function(examId) {
+            const exam = appData.exams.find(e => e.id === examId);
+            if (!exam) return;
+
+            const studentsInGroup = appData.students.filter(s => s.groupId === exam.groupId);
+
+            // Fetch existing results for this exam
+            const resultsRef = collection(db, `exams/${examId}/results`);
+            const resultsSnapshot = await getDocs(resultsRef);
+            const existingResults = resultsSnapshot.docs.map(d => ({ studentId: d.id, ...d.data() }));
+
+            let studentRows = studentsInGroup.map(student => {
+                const result = existingResults.find(r => r.studentId === student.id);
+                return `
+                    <tr class="border-b">
+                        <td class="py-2 px-4">${student.name}</td>
+                        <td class="py-2 px-4">
+                            <input type="number" data-studentid="${student.id}" class="p-1 border rounded-lg w-24" value="${result?.score || ''}" placeholder="--">
+                        </td>
+                         <td class="py-2 px-4">${exam.maxScore}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            const modalContent = `
+                <h3 class="text-2xl font-bold mb-4">نتائج امتحان: ${exam.name}</h3>
+                <p class="mb-6 text-gray-600">المجموعة: ${appData.groups.find(g=>g.id === exam.groupId)?.name || 'N/A'}</p>
+                <form id="exam-results-form">
+                    <div class="max-h-96 overflow-y-auto">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-200 sticky top-0">
+                                <tr>
+                                    <th class="py-2 px-4 text-right">الطالب</th>
+                                    <th class="py-2 px-4 text-right">الدرجة</th>
+                                    <th class="py-2 px-4 text-right">الدرجة القصوى</th>
+                                </tr>
+                            </thead>
+                            <tbody>${studentRows}</tbody>
+                        </table>
+                    </div>
+                    <div class="flex justify-end space-x-4 space-x-reverse mt-6">
+                        <button type="button" onclick="closeModal('exam-results-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إغلاق</button>
+                        <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-lg">حفظ النتائج</button>
+                    </div>
+                </form>
+            `;
+            renderModal('exam-results-modal', modalContent, 'max-w-3xl');
+            document.getElementById('exam-results-form').onsubmit = (e) => handleExamResultsSubmit(e, examId);
+        }
+
+        async function handleExamResultsSubmit(event, examId) {
+            event.preventDefault();
+            const inputs = event.target.querySelectorAll('input[data-studentid]');
+            const batch = writeBatch(db);
+
+            inputs.forEach(input => {
+                const studentId = input.dataset.studentid;
+                const score = input.value.trim();
+                if (score !== '') {
+                    const resultRef = doc(db, `exams/${examId}/results`, studentId);
+                    batch.set(resultRef, { score: parseFloat(score) });
+                }
+            });
+
+            try {
+                await batch.commit();
+                alert('تم حفظ النتائج بنجاح.');
+                closeModal('exam-results-modal');
+            } catch (error) {
+                console.error("Error saving exam results:", error);
+                alert('فشل حفظ النتائج.');
+            }
+        }
+
         function renderFinancePage() {
-            // Implementation...
+            const container = document.getElementById('page-content');
+            const monthlyRevenue = {}; // { 'YYYY-MM': revenue }
+            const groupRevenue = {}; // { 'groupId': revenue }
+
+            appData.payments.forEach(p => {
+                const month = p.timestamp.toDate().toISOString().slice(0, 7); // YYYY-MM
+                monthlyRevenue[month] = (monthlyRevenue[month] || 0) + p.amount;
+                if(p.groupId) {
+                    groupRevenue[p.groupId] = (groupRevenue[p.groupId] || 0) + p.amount;
+                }
+            });
+
+            const totalRevenue = appData.payments.reduce((sum, p) => sum + p.amount, 0);
+
+            const sortedMonths = Object.keys(monthlyRevenue).sort().reverse();
+            let monthlyRows = sortedMonths.map(month => `
+                <tr class="border-b">
+                    <td class="py-2 px-4">${month}</td>
+                    <td class="py-2 px-4">${monthlyRevenue[month].toFixed(2)} جنيه</td>
+                </tr>
+            `).join('');
+
+            let groupRows = Object.keys(groupRevenue).map(groupId => {
+                const group = appData.groups.find(g => g.id === groupId);
+                return `
+                    <tr class="border-b">
+                        <td class="py-2 px-4">${group?.name || 'مجموعة محذوفة'}</td>
+                        <td class="py-2 px-4">${groupRevenue[groupId].toFixed(2)} جنيه</td>
+                    </tr>
+                `
+            }).join('');
+
+            container.innerHTML = `
+                <div id="finance-page" class="page">
+                    <div class="flex justify-between items-center mb-6 no-print">
+                        <h2 class="text-3xl font-bold">الشؤون المالية</h2>
+                        <button onclick="openPaymentModal()" class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600"><i class="fas fa-plus mr-2"></i> إضافة دفعة</button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                         <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                            <h3 class="text-lg font-semibold text-gray-600">إجمالي الإيرادات</h3>
+                            <p class="text-4xl font-bold mt-2 text-green-600">${totalRevenue.toFixed(2)}</p>
+                            <p class="text-gray-500">جنيه</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                            <h3 class="text-lg font-semibold text-gray-600">إيرادات الشهر الحالي</h3>
+                            <p class="text-4xl font-bold mt-2">${(monthlyRevenue[new Date().toISOString().slice(0, 7)] || 0).toFixed(2)}</p>
+                             <p class="text-gray-500">جنيه</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                            <h3 class="text-lg font-semibold text-gray-600">عدد المدفوعات</h3>
+                            <p class="text-4xl font-bold mt-2">${appData.payments.length}</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-xl font-bold mb-4">الإيرادات الشهرية</h3>
+                            <table class="min-w-full">
+                                <thead class="bg-gray-200"><tr><th class="py-2 px-4 text-right">الشهر</th><th class="py-2 px-4 text-right">الإيرادات</th></tr></thead>
+                                <tbody>${monthlyRows}</tbody>
+                            </table>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-xl font-bold mb-4">إيرادات المجموعات</h3>
+                            <table class="min-w-full">
+                                <thead class="bg-gray-200"><tr><th class="py-2 px-4 text-right">المجموعة</th><th class="py-2 px-4 text-right">الإيرادات</th></tr></thead>
+                                <tbody>${groupRows}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
+
+        window.openPaymentModal = function() {
+            let studentsOptions = appData.students.map(s => `<option value="${s.id}" data-groupid="${s.groupId}">${s.name} (${s.studentCode})</option>`).join('');
+
+            const modalContent = `
+                <h3 class="text-2xl font-bold mb-6">تسجيل دفعة جديدة</h3>
+                <form id="payment-form">
+                    <div class="space-y-4">
+                        <select id="payment-student" class="p-2 border rounded-lg w-full" required>
+                            <option value="">-- اختر الطالب --</option>
+                            ${studentsOptions}
+                        </select>
+                        <input type="number" id="payment-amount" placeholder="المبلغ المدفوع" class="p-2 border rounded-lg w-full" required>
+                        <input type="text" id="payment-month" placeholder="شهر الدفع (مثال: يناير)" class="p-2 border rounded-lg w-full" required>
+                        <textarea id="payment-notes" placeholder="ملاحظات (اختياري)" class="p-2 border rounded-lg w-full h-24"></textarea>
+                    </div>
+                    <div class="flex justify-end space-x-4 space-x-reverse mt-6">
+                        <button type="button" onclick="closeModal('payment-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إلغاء</button>
+                        <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-lg">حفظ الدفعة</button>
+                    </div>
+                </form>
+            `;
+            renderModal('payment-modal', modalContent);
+
+            document.getElementById('payment-form').onsubmit = handlePaymentFormSubmit;
+        }
+
+        async function handlePaymentFormSubmit(event) {
+            event.preventDefault();
+            const studentSelect = document.getElementById('payment-student');
+            const selectedOption = studentSelect.options[studentSelect.selectedIndex];
+
+            const paymentData = {
+                studentId: selectedOption.value,
+                groupId: selectedOption.dataset.groupid,
+                amount: parseFloat(document.getElementById('payment-amount').value),
+                month: document.getElementById('payment-month').value,
+                notes: document.getElementById('payment-notes').value,
+                timestamp: serverTimestamp()
+            };
+
+            if (!paymentData.studentId || !paymentData.amount || !paymentData.month) {
+                alert("يرجى ملء جميع الحقول المطلوبة.");
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, "payments"), paymentData);
+                alert('تم تسجيل الدفعة بنجاح.');
+                closeModal('payment-modal');
+            } catch (error) {
+                console.error("Error saving payment:", error);
+                alert("فشل تسجيل الدفعة.");
+            }
+        }
+
         function renderPaymentsLogPage() {
-            // Implementation...
+            const container = document.getElementById('page-content');
+
+            // Sort payments by timestamp descending
+            const sortedPayments = [...appData.payments].sort((a, b) => {
+                const dateA = a.timestamp?.toMillis() || 0;
+                const dateB = b.timestamp?.toMillis() || 0;
+                return dateB - dateA;
+            });
+
+            let tableRows = sortedPayments.map(p => {
+                const student = appData.students.find(s => s.id === p.studentId);
+                const group = appData.groups.find(g => g.id === p.groupId);
+                return `
+                    <tr class="border-b">
+                        <td class="py-2 px-4">${p.timestamp?.toDate().toLocaleDateString('ar-EG') || 'N/A'}</td>
+                        <td class="py-2 px-4">${student?.name || 'طالب محذوف'}</td>
+                        <td class="py-2 px-4">${group?.name || 'N/A'}</td>
+                        <td class="py-2 px-4">${p.amount.toFixed(2)} جنيه</td>
+                        <td class="py-2 px-4">${p.month}</td>
+                        <td class="py-2 px-4">${p.notes || ''}</td>
+                        <td class="py-2 px-4 no-print">
+                            <button onclick="deletePayment('${p.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                 <div id="payments-log-page" class="page">
+                    <div class="flex justify-between items-center mb-6 no-print">
+                        <h2 class="text-3xl font-bold">سجل المدفوعات</h2>
+                        <button onclick="printReport()" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"><i class="fas fa-print mr-2"></i> طباعة السجل</button>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto printable-area">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-800 text-white">
+                                <tr>
+                                    <th class="py-3 px-4 text-right">تاريخ الدفع</th>
+                                    <th class="py-3 px-4 text-right">الطالب</th>
+                                    <th class="py-3 px-4 text-right">المجموعة</th>
+                                    <th class="py-3 px-4 text-right">المبلغ</th>
+                                    <th class="py-3 px-4 text-right">الشهر</th>
+                                    <th class="py-3 px-4 text-right">ملاحظات</th>
+                                    <th class="py-3 px-4 text-right no-print">إجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody>${tableRows}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.deletePayment = async function(paymentId) {
+            if (!confirm("هل أنت متأكد من حذف هذه الدفعة؟ لا يمكن التراجع عن هذا الإجراء.")) return;
+            try {
+                await deleteDoc(doc(db, "payments", paymentId));
+                alert("تم حذف الدفعة بنجاح.");
+            } catch (error) {
+                console.error("Error deleting payment:", error);
+                alert("فشل حذف الدفعة.");
+            }
         }
 
         // --- ADMIN-SPECIFIC FUNCTIONS ---
@@ -986,6 +1357,251 @@
                 console.error("Error deleting student:", error);
                 alert("فشل حذف الطالب.");
             }
+        }
+
+        // --- Teacher CRUD ---
+        window.openTeacherModal = function(teacherId = null) {
+            const teacher = teacherId ? appData.teachers.find(t => t.id === teacherId) : null;
+            const title = teacher ? 'تعديل بيانات مدرس' : 'إضافة مدرس جديد';
+
+            const modalContent = `
+                <h3 class="text-2xl font-bold mb-6">${title}</h3>
+                <form id="teacher-form">
+                    <input type="hidden" id="teacher-id-hidden" value="${teacher?.id || ''}">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="text" id="teacher-name" placeholder="اسم المدرس" class="p-2 border rounded-lg w-full" value="${teacher?.name || ''}" required>
+                        <input type="text" id="teacher-subject" placeholder="المادة" class="p-2 border rounded-lg w-full" value="${teacher?.subject || ''}" required>
+                        <input type="text" id="teacher-phone" placeholder="رقم الهاتف" class="p-2 border rounded-lg w-full" value="${teacher?.phone || ''}">
+                    </div>
+                    <div class="flex justify-end space-x-4 space-x-reverse mt-6">
+                        <button type="button" onclick="closeModal('teacher-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إلغاء</button>
+                        <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-lg">حفظ</button>
+                    </div>
+                </form>
+            `;
+            renderModal('teacher-modal', modalContent);
+            document.getElementById('teacher-form').onsubmit = handleTeacherFormSubmit;
+        }
+
+        async function handleTeacherFormSubmit(event) {
+            event.preventDefault();
+            const teacherId = document.getElementById('teacher-id-hidden').value;
+            const teacherData = {
+                name: document.getElementById('teacher-name').value,
+                subject: document.getElementById('teacher-subject').value,
+                phone: document.getElementById('teacher-phone').value
+            };
+
+            try {
+                if(teacherId) {
+                    const teacherDoc = appData.teachers.find(t => t.id === teacherId);
+                    if (teacherDoc && teacherDoc.userId) {
+                        // Also update the name in the users collection for consistency
+                        await updateDoc(doc(db, "users", teacherDoc.userId), { name: teacherData.name });
+                    }
+                    await updateDoc(doc(db, "teachers", teacherId), teacherData);
+                    alert('تم تحديث بيانات المدرس بنجاح.');
+                } else {
+                    // This is for admins creating a teacher profile without a user account yet.
+                    await addDoc(collection(db, "teachers"), teacherData);
+                    alert('تمت إضافة المدرس بنجاح. ملاحظة: لم يتم إنشاء حساب مستخدم لهذا المدرس.');
+                }
+                closeModal('teacher-modal');
+            } catch (error) {
+                console.error("Error saving teacher:", error);
+                alert("فشل حفظ بيانات المدرس.");
+            }
+        }
+
+        window.deleteTeacher = async function(teacherId) {
+            if (!confirm("هل أنت متأكد من حذف هذا المدرس؟ لن يتم حذف حساب المستخدم المرتبط به.")) return;
+            try {
+                await deleteDoc(doc(db, "teachers", teacherId));
+                alert("تم حذف المدرس بنجاح.");
+            } catch (error) {
+                console.error("Error deleting teacher:", error);
+                alert("فشل حذف المدرس.");
+            }
+        }
+
+        // --- Group CRUD ---
+        window.openGroupModal = function(groupId = null) {
+            const group = groupId ? appData.groups.find(g => g.id === groupId) : null;
+            const title = group ? 'تعديل بيانات مجموعة' : 'إضافة مجموعة جديدة';
+            const isAdmin = currentUserData.role === 'admin';
+
+            let teachersOptions = appData.teachers.map(t => `<option value="${t.id}" ${group?.teacherId === t.id ? 'selected' : ''}>${t.name}</option>`).join('');
+            const daysOfWeek = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+            let daysCheckboxes = daysOfWeek.map(day => `
+                <label class="inline-flex items-center">
+                    <input type="checkbox" class="form-checkbox" name="group-day" value="${day}" ${group?.schedule?.days?.includes(day) ? 'checked' : ''}>
+                    <span class="ms-2">${day}</span>
+                </label>
+            `).join('');
+
+            const modalContent = `
+                <h3 class="text-2xl font-bold mb-6">${title}</h3>
+                <form id="group-form">
+                    <input type="hidden" id="group-id-hidden" value="${group?.id || ''}">
+                    <div class="space-y-4">
+                        <input type="text" id="group-name" placeholder="اسم المجموعة" class="p-2 border rounded-lg w-full" value="${group?.name || ''}" required>
+                        ${isAdmin ? `
+                        <select id="group-teacher" class="p-2 border rounded-lg w-full" required>
+                            <option value="">-- اختر المدرس --</option>
+                            ${teachersOptions}
+                        </select>
+                        ` : ''}
+                        <input type="number" id="group-price" placeholder="سعر المجموعة" class="p-2 border rounded-lg w-full" value="${group?.price || ''}" required>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">أيام المحاضرات:</label>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                ${daysCheckboxes}
+                            </div>
+                        </div>
+                        <input type="time" id="group-time" class="p-2 border rounded-lg w-full" value="${group?.schedule?.time || ''}" required>
+                    </div>
+                    <div class="flex justify-end space-x-4 space-x-reverse mt-6">
+                        <button type="button" onclick="closeModal('group-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إلغاء</button>
+                        <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-lg">حفظ</button>
+                    </div>
+                </form>
+            `;
+            renderModal('group-modal', modalContent, 'max-w-2xl');
+            document.getElementById('group-form').onsubmit = handleGroupFormSubmit;
+        }
+
+        async function handleGroupFormSubmit(event) {
+            event.preventDefault();
+            const groupId = document.getElementById('group-id-hidden').value;
+            const selectedDays = Array.from(document.querySelectorAll('input[name="group-day"]:checked')).map(el => el.value);
+            const isAdmin = currentUserData.role === 'admin';
+
+            let teacherId = isAdmin ? document.getElementById('group-teacher').value : currentTeacherDoc.id;
+
+            const groupData = {
+                name: document.getElementById('group-name').value,
+                teacherId: teacherId,
+                price: parseFloat(document.getElementById('group-price').value),
+                schedule: {
+                    days: selectedDays,
+                    time: document.getElementById('group-time').value
+                }
+            };
+
+            try {
+                if(groupId) {
+                    await updateDoc(doc(db, "groups", groupId), groupData);
+                    alert('تم تحديث بيانات المجموعة بنجاح.');
+                } else {
+                    await addDoc(collection(db, "groups"), groupData);
+                    alert('تمت إضافة المجموعة بنجاح.');
+                }
+                closeModal('group-modal');
+            } catch (error) {
+                console.error("Error saving group:", error);
+                alert("فشل حفظ بيانات المجموعة.");
+            }
+        }
+
+        window.deleteGroup = async function(groupId) {
+            if (!confirm("هل أنت متأكد من حذف هذه المجموعة؟ سيتم إلغاء تسجيل كل الطلاب المرتبطين بها.")) return;
+            try {
+                // This is a simplified delete. A more robust solution would be a batch write
+                // to also un-enroll students or a cloud function to handle this.
+                await deleteDoc(doc(db, "groups", groupId));
+                alert("تم حذف المجموعة بنجاح.");
+            } catch (error) {
+                console.error("Error deleting group:", error);
+                alert("فشل حذف المجموعة.");
+            }
+        }
+
+        // --- Attendance Functions ---
+        function renderAttendanceTable() {
+            const tableBody = document.getElementById('attendance-log-body');
+            if(!tableBody) return;
+
+            // Sort attendance by timestamp descending
+            const sortedAttendance = [...appData.attendance].sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+
+            tableBody.innerHTML = sortedAttendance.map(record => {
+                const student = appData.students.find(s => s.id === record.studentId);
+                const group = appData.groups.find(g => g.id === record.groupId);
+                return `
+                    <tr class="border-b">
+                        <td class="py-2 px-4">${student?.studentCode || 'N/A'}</td>
+                        <td class="py-2 px-4">${student?.name || 'طالب محذوف'}</td>
+                        <td class="py-2 px-4">${group?.name || 'مجموعة محذوفة'}</td>
+                        <td class="py-2 px-4">${record.timestamp.toDate().toLocaleString('ar-EG')}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        window.handleAttendanceRecording = async function() {
+            const studentCodeInput = document.getElementById('attendance-student-code');
+            const studentCode = studentCodeInput.value.trim();
+            const statusEl = document.getElementById('attendance-status');
+            if (!studentCode) return;
+
+            statusEl.textContent = 'جار البحث...';
+            statusEl.className = 'mt-4 text-center h-5 text-gray-500';
+
+            try {
+                // Find student by code
+                const studentQuery = query(collection(db, "students"), where("studentCode", "==", studentCode));
+                const studentSnapshot = await getDocs(studentQuery);
+
+                if (studentSnapshot.empty) {
+                    statusEl.textContent = 'لم يتم العثور على طالب بهذا الكود.';
+                    statusEl.className = 'mt-4 text-center h-5 text-red-500';
+                    return;
+                }
+
+                const studentDoc = studentSnapshot.docs[0];
+                const student = { id: studentDoc.id, ...studentDoc.data() };
+
+                // Check if student already attended today
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+
+                const attendanceQuery = query(collection(db, "attendance"),
+                    where("studentId", "==", student.id),
+                    where("timestamp", ">=", today),
+                    where("timestamp", "<", tomorrow)
+                );
+                const todayAttendanceSnapshot = await getDocs(attendanceQuery);
+
+                if (!todayAttendanceSnapshot.empty) {
+                    statusEl.textContent = `تم تسجيل حضور الطالب ${student.name} بالفعل اليوم.`;
+                    statusEl.className = 'mt-4 text-center h-5 text-amber-500';
+                    studentCodeInput.value = '';
+                    return;
+                }
+
+                // Record new attendance
+                await addDoc(collection(db, "attendance"), {
+                    studentId: student.id,
+                    groupId: student.groupId,
+                    timestamp: serverTimestamp()
+                });
+
+                statusEl.textContent = `تم تسجيل حضور الطالب: ${student.name}`;
+                statusEl.className = 'mt-4 text-center h-5 text-green-500';
+                studentCodeInput.value = '';
+
+            } catch (error) {
+                console.error("Error recording attendance:", error);
+                statusEl.textContent = 'حدث خطأ أثناء تسجيل الحضور.';
+                statusEl.className = 'mt-4 text-center h-5 text-red-500';
+            }
+        }
+
+        // --- Generic Functions ---
+        window.printReport = function() {
+            window.print();
         }
         
     </script>
