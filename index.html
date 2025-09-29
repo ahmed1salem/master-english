@@ -588,7 +588,16 @@
                     cleanupListeners(['groups']);
 
                     if (teacherGroupIds.length > 0) {
-                        ['students', 'exams', 'attendance', 'payments'].forEach(col => {
+                        // Fetch students using array-contains-any for the 'groupIds' field
+                        const studentQuery = query(collection(db, "students"), where("groupIds", "array-contains-any", teacherGroupIds));
+                        const unsubStudents = onSnapshot(studentQuery, (snapshot) => {
+                            appData.students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                            renderCurrentPage();
+                        });
+                        unsubscribeListeners.push(unsubStudents);
+
+                        // Fetch other data related by a single groupId
+                        ['exams', 'attendance', 'payments'].forEach(col => {
                             const dataQuery = query(collection(db, col), where("groupId", "in", teacherGroupIds));
                             const unsub = onSnapshot(dataQuery, (snapshot) => {
                                 appData[col] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -1021,7 +1030,10 @@
             const exam = appData.exams.find(e => e.id === examId);
             if (!exam) return;
 
-            const studentsInGroup = appData.students.filter(s => s.groupId === exam.groupId);
+            const studentsInGroup = appData.students.filter(s => {
+                const studentGroupIds = Array.isArray(s.groupIds) ? s.groupIds : (s.groupId ? [s.groupId] : []);
+                return studentGroupIds.includes(exam.groupId);
+            });
 
             // Fetch existing results for this exam
             const resultsRef = collection(db, `exams/${examId}/results`);
