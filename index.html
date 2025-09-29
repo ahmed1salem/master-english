@@ -644,7 +644,7 @@
                         <td class="py-2 px-4">${student.grade}</td>
                         <td class="py-2 px-4">${student.phone}</td>
                         <td class="py-2 px-4">${group?.name || 'غير مسجل'}</td>
-                        <td class="py-2 px-4 space-x-2 space-x-reverse">
+                        <td class="py-2 px-4 space-x-2 space-x-reverse no-print">
                             <button onclick="openStudentModal('${student.id}')" class="text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
                             <button onclick="deleteStudent('${student.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
                         </td>
@@ -654,10 +654,15 @@
 
             container.innerHTML = `
                 <div id="students-page" class="page">
-                    <h2 class="text-3xl font-bold mb-6">إدارة الطلاب</h2>
-                    <button onclick="openStudentModal()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 mb-4 no-print"><i class="fas fa-plus mr-2"></i> إضافة طالب جديد</button>
+                    <div class="flex justify-between items-center mb-6 no-print">
+                        <h2 class="text-3xl font-bold">إدارة الطلاب</h2>
+                        <div>
+                            <button onclick="printReport('students-page')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"><i class="fas fa-print mr-2"></i> طباعة</button>
+                            <button onclick="openStudentModal()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"><i class="fas fa-plus mr-2"></i> إضافة طالب جديد</button>
+                        </div>
+                    </div>
                     <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto printable-area">
-                        <table class="min-w-full bg-white">
+                        <table id="students-table" class="min-w-full bg-white">
                             <thead class="bg-gray-800 text-white">
                                 <tr>
                                     <th class="py-3 px-4 text-right">الكود</th>
@@ -759,16 +764,53 @@
         }
         
         function renderAttendancePage() {
-            // This function is now fully implemented below
+             const container = document.getElementById('page-content');
+             container.innerHTML = `
+                <div id="attendance-page" class="page">
+                    <h2 class="text-3xl font-bold mb-6">تسجيل الحضور والغياب</h2>
+                    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                        <h3 class="text-xl font-bold mb-4">تسجيل حضور طالب</h3>
+                        <div class="flex items-center space-x-4 space-x-reverse">
+                            <input type="text" id="attendance-student-code" placeholder="أدخل كود الطالب" class="flex-grow p-2 border rounded-lg">
+                            <button onclick="handleAttendanceRecording()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600">تسجيل</button>
+                        </div>
+                        <p id="attendance-status" class="mt-4 text-center h-5"></p>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-md printable-area">
+                        <div class="flex justify-between items-center mb-4 no-print">
+                            <h3 class="text-xl font-bold">سجل الحضور</h3>
+                            <button onclick="printReport('attendance-page')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"><i class="fas fa-print mr-2"></i> طباعة</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table id="attendance-log-table" class="min-w-full bg-white">
+                                <thead class="bg-gray-800 text-white">
+                                    <tr>
+                                        <th class="py-3 px-4 text-right">كود الطالب</th>
+                                        <th class="py-3 px-4 text-right">اسم الطالب</th>
+                                        <th class="py-3 px-4 text-right">المجموعة</th>
+                                        <th class="py-3 px-4 text-right">التاريخ والوقت</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="attendance-log-body">
+                                    <!-- Rows will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+             `;
+             renderAttendanceTable();
         }
+
         function renderExamsPage() {
-            // This function is now fully implemented below
+            // Implementation...
         }
         function renderFinancePage() {
-            // This function is now fully implemented below
+            // Implementation...
         }
         function renderPaymentsLogPage() {
-            // This function is now fully implemented below
+            // Implementation...
         }
 
         // --- ADMIN-SPECIFIC FUNCTIONS ---
