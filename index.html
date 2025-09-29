@@ -161,13 +161,8 @@
 
         <!-- Sidebar Navigation -->
         <nav id="sidebar" class="bg-gray-800 text-white w-64 p-4 flex-shrink-0 flex flex-col no-print fixed md:relative h-full z-20 transform -translate-x-full md:translate-x-0">
-            <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center justify-center mb-4">
                 <h1 class="text-2xl font-bold text-center" data-translate="dashboard">لوحة التحكم</h1>
-                 <!-- Language Switcher -->
-                 <select id="language-switcher" class="bg-gray-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2">
-                    <option value="ar">العربية</option>
-                    <option value="en">English</option>
-                </select>
             </div>
             
             <!-- User Info -->
@@ -270,88 +265,6 @@
 
         // --- TRANSLATION DATA & LOGIC ---
         const translations = {
-            en: {
-                app_title: "Master English Management System",
-                center_name: "Master English",
-                management_system: "Educational Management System",
-                login: "Login",
-                create_account: "Create Account",
-                email: "Email Address",
-                password: "Password",
-                full_name: "Full Name",
-                account_pending_title: "Account Under Review",
-                account_pending_message: "Your request has been received. Your account will be activated after admin approval. You will be notified upon approval.",
-                logout: "Logout",
-                dashboard: "Dashboard",
-                nav_dashboard: "Dashboard",
-                nav_requests: "Registration Requests",
-                nav_attendance: "Attendance",
-                nav_students: "Students",
-                nav_teachers: "Teachers",
-                nav_finance: "Financials",
-                nav_reports: "Financial Reports",
-                nav_payments_log: "Payments Log",
-                nav_groups: "Groups",
-                nav_exams: "Exams",
-                // Finance Page
-                finance_title: "Financials",
-                add_payment: "Add Payment",
-                total_revenue: "Total Revenue",
-                current_month_revenue: "Current Month's Revenue (by due date)",
-                payment_count: "Payments Count",
-                monthly_revenue_by_due_date: "Monthly Revenue (by due date)",
-                group_revenue: "Revenue by Group",
-                // Payment Modal
-                new_payment_title: "Record New Payment",
-                student: "Student",
-                select_student: "-- Select Student --",
-                amount_paid: "Amount Paid",
-                payment_date: "Actual Payment Date",
-                payment_for_month: "Payment for Month",
-                payment_for_year: "Payment for Year",
-                notes: "Notes",
-                notes_optional: "Notes (optional)",
-                cancel: "Cancel",
-                save_payment: "Save Payment",
-                // Payments Log
-                payment_log_title: "Payments Log",
-                print_log: "Print Log",
-                payment_date_header: "Payment Date",
-                for_month_year: "For Month/Year",
-                actions: "Actions",
-                print_invoice: "Print Invoice",
-                delete: "Delete",
-                // Invoice
-                receipt_title: "Cash Receipt",
-                receipt_date: "Date",
-                receipt_no: "Receipt No.",
-                received_from: "Received from student:",
-                description: "Description",
-                amount: "Amount",
-                fees_for_month: "Fees for month",
-                total: "Total",
-                amount_in_words: "Amount in words:",
-                egyptian_pounds_only: "Egyptian Pounds only.",
-                received_by: "Received by:",
-                receiver_signature: "Receiver's Signature:",
-                close: "Close",
-                print: "Print",
-                // Reports Page
-                reports_title: "Financial Reports & Analytics",
-                unpaid_students_report: "Unpaid Students Report",
-                month: "Month",
-                year: "Year",
-                group_optional: "Group (optional)",
-                all_groups: "All Groups",
-                generate_report: "Generate Report",
-                generating_report: "Generating report...",
-                all_students_paid: "All students in the selected scope have paid for this month.",
-                unpaid_report_for: "Unpaid students report for:",
-                group: "Group:",
-                code: "Code",
-                name: "Name",
-                phone: "Phone",
-            },
             ar: {
                 app_title: "نظام إدارة Master English",
                 center_name: "Master English",
@@ -436,11 +349,11 @@
             }
         };
 
-        function setLanguage(lang) {
-            localStorage.setItem('language', lang);
+        function applyArabicLanguage() {
+            const lang = 'ar';
             document.documentElement.lang = lang;
-            document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-            document.body.style.fontFamily = lang === 'ar' ? "var(--font-ar)" : "var(--font-en)";
+            document.documentElement.dir = 'rtl';
+            document.body.style.fontFamily = "var(--font-ar)";
 
             document.querySelectorAll('[data-translate]').forEach(el => {
                 const key = el.getAttribute('data-translate');
@@ -452,12 +365,8 @@
         
         // --- INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', () => {
-            // Language switcher setup
-            const langSwitcher = document.getElementById('language-switcher');
-            const savedLang = localStorage.getItem('language') || 'ar';
-            langSwitcher.value = savedLang;
-            setLanguage(savedLang);
-            langSwitcher.addEventListener('change', (e) => setLanguage(e.target.value));
+            // Set language to Arabic
+            applyArabicLanguage();
 
             // Auth forms setup
             document.getElementById('login-tab').addEventListener('click', (e) => switchAuthTab(e, 'login'));
@@ -759,17 +668,28 @@
             const container = document.getElementById('page-content');
             let tableRows = '';
             appData.students.forEach(student => {
-                const group = appData.groups.find(g => g.id === student.groupId);
+                let groupNames = 'غير مسجل';
+                // Handle both new `groupIds` (array) and old `groupId` (string)
+                const groupIds = Array.isArray(student.groupIds) ? student.groupIds : (student.groupId ? [student.groupId] : []);
+
+                if (groupIds.length > 0) {
+                    groupNames = groupIds.map(id => {
+                        const group = appData.groups.find(g => g.id === id);
+                        return group ? group.name : 'مجموعة محذوفة';
+                    }).join(', ');
+                }
+
                 tableRows += `
                      <tr class="border-b">
                         <td class="py-2 px-4">${student.studentCode || 'N/A'}</td>
                         <td class="py-2 px-4">${student.name}</td>
                         <td class="py-2 px-4">${student.grade}</td>
                         <td class="py-2 px-4">${student.phone}</td>
-                        <td class="py-2 px-4">${group?.name || 'غير مسجل'}</td>
+                        <td class="py-2 px-4">${groupNames}</td>
                         <td class="py-2 px-4 space-x-2 space-x-reverse no-print">
-                            <button onclick="openStudentModal('${student.id}')" class="text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
-                            <button onclick="deleteStudent('${student.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                            <button onclick="generateStudentReport('${student.id}')" class="text-green-500 hover:text-green-700" title="تقرير شامل"><i class="fas fa-address-card"></i></button>
+                            <button onclick="openStudentModal('${student.id}')" class="text-blue-500 hover:text-blue-700" title="تعديل"><i class="fas fa-edit"></i></button>
+                            <button onclick="deleteStudent('${student.id}')" class="text-red-500 hover:text-red-700" title="حذف"><i class="fas fa-trash"></i></button>
                         </td>
                     </tr>
                 `;
@@ -887,22 +807,31 @@
         }
         
         function renderAttendancePage() {
-             const container = document.getElementById('page-content');
-             container.innerHTML = `
+            const container = document.getElementById('page-content');
+
+            const groupOptions = appData.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+
+            container.innerHTML = `
                 <div id="attendance-page" class="page">
                     <h2 class="text-3xl font-bold mb-6">تسجيل الحضور والغياب</h2>
-                    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-                        <h3 class="text-xl font-bold mb-4">تسجيل حضور طالب</h3>
+
+                    <div class="bg-white p-6 rounded-lg shadow-md mb-6 no-print">
+                        <h3 class="text-xl font-bold mb-4">1. اختر المجموعة</h3>
                         <div class="flex items-center space-x-4 space-x-reverse">
-                            <input type="text" id="attendance-student-code" placeholder="أدخل كود الطالب" class="flex-grow p-2 border rounded-lg">
-                            <button onclick="handleAttendanceRecording()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600">تسجيل</button>
+                            <select id="attendance-group-selector" class="p-2 border rounded-lg w-full">
+                                <option value="">-- اختر مجموعة لبدء التسجيل --</option>
+                                ${groupOptions}
+                            </select>
                         </div>
-                        <p id="attendance-status" class="mt-4 text-center h-5"></p>
                     </div>
-                    
-                    <div class="bg-white p-6 rounded-lg shadow-md printable-area">
+
+                    <div id="attendance-student-list-container">
+                        <!-- Students of the selected group will be rendered here -->
+                    </div>
+
+                    <div class="bg-white p-6 rounded-lg shadow-md printable-area mt-8">
                         <div class="flex justify-between items-center mb-4 no-print">
-                            <h3 class="text-xl font-bold">سجل الحضور</h3>
+                            <h3 class="text-xl font-bold">سجل الحضور اليومي (آخر 100)</h3>
                             <button onclick="printReport('attendance-page')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"><i class="fas fa-print mr-2"></i> طباعة</button>
                         </div>
                         <div class="overflow-x-auto">
@@ -915,15 +844,15 @@
                                         <th class="py-3 px-4 text-right">التاريخ والوقت</th>
                                     </tr>
                                 </thead>
-                                <tbody id="attendance-log-body">
-                                    <!-- Rows will be inserted here -->
-                                </tbody>
+                                <tbody id="attendance-log-body"></tbody>
                             </table>
                         </div>
                     </div>
                 </div>
-             `;
-             renderAttendanceTable();
+            `;
+
+            document.getElementById('attendance-group-selector').addEventListener('change', renderAttendanceStudentList);
+            renderAttendanceTable();
         }
 
         function renderExamsPage() {
@@ -931,12 +860,13 @@
             let tableRows = '';
             appData.exams.forEach(exam => {
                 const group = appData.groups.find(g => g.id === exam.groupId);
+                const maxScore = Number(exam.maxScore) || 0;
                 tableRows += `
                     <tr class="border-b">
                         <td class="py-2 px-4">${exam.name}</td>
                         <td class="py-2 px-4">${group?.name || 'N/A'}</td>
                         <td class="py-2 px-4">${exam.date}</td>
-                        <td class="py-2 px-4">${exam.maxScore}</td>
+                        <td class="py-2 px-4">${maxScore}</td>
                         <td class="py-2 px-4 space-x-2 space-x-reverse">
                             <button onclick="openExamResultsModal('${exam.id}')" class="text-green-500 hover:text-green-700" title="عرض النتائج"><i class="fas fa-poll"></i></button>
                             <button onclick="openExamModal('${exam.id}')" class="text-blue-500 hover:text-blue-700" title="تعديل"><i class="fas fa-edit"></i></button>
@@ -1001,11 +931,18 @@
         async function handleExamFormSubmit(event) {
             event.preventDefault();
             const examId = document.getElementById('exam-id-hidden').value;
+            const maxScoreValue = parseFloat(document.getElementById('exam-max-score').value);
+
+            if (isNaN(maxScoreValue)) {
+                alert("يرجى إدخال درجة قصوى صالحة.");
+                return;
+            }
+
             const examData = {
                 name: document.getElementById('exam-name').value,
                 groupId: document.getElementById('exam-group').value,
                 date: document.getElementById('exam-date').value,
-                maxScore: parseFloat(document.getElementById('exam-max-score').value),
+                maxScore: maxScoreValue,
             };
 
             try {
@@ -1047,6 +984,8 @@
             const resultsSnapshot = await getDocs(resultsRef);
             const existingResults = resultsSnapshot.docs.map(d => ({ studentId: d.id, ...d.data() }));
 
+            const maxScore = Number(exam.maxScore) || 0;
+
             let studentRows = studentsInGroup.map(student => {
                 const result = existingResults.find(r => r.studentId === student.id);
                 return `
@@ -1055,7 +994,7 @@
                         <td class="py-2 px-4">
                             <input type="number" data-studentid="${student.id}" class="p-1 border rounded-lg w-24" value="${result?.score || ''}" placeholder="--">
                         </td>
-                         <td class="py-2 px-4">${exam.maxScore}</td>
+                         <td class="py-2 px-4">${maxScore}</td>
                     </tr>
                 `;
             }).join('');
@@ -1116,6 +1055,9 @@
             const groupRevenue = {}; // { 'groupId': revenue }
 
             appData.payments.forEach(p => {
+                const amount = Number(p.amount) || 0;
+                if (amount === 0) return; // Don't process zero-amount payments in reports
+
                 // Handle both old and new data structures
                 let year, month;
                 if (p.paymentForYear && p.paymentForMonth) {
@@ -1130,14 +1072,14 @@
                 }
 
                 const monthKey = `${year}-${String(month).padStart(2, '0')}`;
-                monthlyRevenue[monthKey] = (monthlyRevenue[monthKey] || 0) + p.amount;
+                monthlyRevenue[monthKey] = (monthlyRevenue[monthKey] || 0) + amount;
 
                 if(p.groupId) {
-                    groupRevenue[p.groupId] = (groupRevenue[p.groupId] || 0) + p.amount;
+                    groupRevenue[p.groupId] = (groupRevenue[p.groupId] || 0) + amount;
                 }
             });
 
-            const totalRevenue = appData.payments.reduce((sum, p) => sum + p.amount, 0);
+            const totalRevenue = appData.payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
             const sortedMonths = Object.keys(monthlyRevenue).sort().reverse();
             let monthlyRows = sortedMonths.map(month => `
@@ -1214,12 +1156,14 @@
             const isTeacher = currentUserData.role === 'teacher';
 
             if (isTeacher && !isAdmin) {
-                // appData.groups is already filtered for the current teacher
                 const teacherGroupIds = appData.groups.map(g => g.id);
-                visibleStudents = appData.students.filter(s => teacherGroupIds.includes(s.groupId));
+                visibleStudents = appData.students.filter(s => {
+                    const studentGroupIds = Array.isArray(s.groupIds) ? s.groupIds : [s.groupId];
+                    return studentGroupIds.some(sgid => teacherGroupIds.includes(sgid));
+                });
             }
 
-            let studentsOptions = visibleStudents.map(s => `<option value="${s.id}" data-groupid="${s.groupId}">${s.name} (${s.studentCode})</option>`).join('');
+            let studentsOptions = visibleStudents.map(s => `<option value="${s.id}">${s.name} (${s.studentCode})</option>`).join('');
 
             const monthsOptions = Array.from({length: 12}, (_, i) => {
                 const month = i + 1;
@@ -1242,6 +1186,11 @@
                                 <option value="">-- اختر الطالب --</option>
                                 ${studentsOptions}
                             </select>
+                        </div>
+
+                        <div id="payment-group-selector-container" class="hidden md:col-span-2">
+                            <label for="payment-group-selector" class="block text-sm font-medium text-gray-700 mb-1">الدفع للمجموعة</label>
+                            <select id="payment-group-selector" class="p-2 border rounded-lg w-full"></select>
                         </div>
 
                         <div>
@@ -1276,16 +1225,64 @@
             renderModal('payment-modal', modalContent, 'max-w-2xl');
 
             document.getElementById('payment-form').onsubmit = handlePaymentFormSubmit;
+            document.getElementById('payment-student').addEventListener('change', handlePaymentStudentChange);
+        }
+
+        window.handlePaymentStudentChange = function(event) {
+            const studentId = event.target.value;
+            const groupSelectorContainer = document.getElementById('payment-group-selector-container');
+            const groupSelector = document.getElementById('payment-group-selector');
+
+            if (!studentId) {
+                groupSelectorContainer.classList.add('hidden');
+                return;
+            }
+
+            const student = appData.students.find(s => s.id === studentId);
+            const groupIds = Array.isArray(student?.groupIds) ? student.groupIds : (student?.groupId ? [student.groupId] : []);
+
+            if (groupIds.length > 1) {
+                const groupOptions = groupIds.map(gId => {
+                    const group = appData.groups.find(g => g.id === gId);
+                    return group ? `<option value="${g.id}">${g.name}</option>` : '';
+                }).join('');
+
+                groupSelector.innerHTML = `<option value="">-- اختر المجموعة للدفع --</option>${groupOptions}`;
+                groupSelector.required = true;
+                groupSelectorContainer.classList.remove('hidden');
+            } else {
+                groupSelectorContainer.classList.add('hidden');
+                groupSelector.required = false;
+            }
         }
 
         async function handlePaymentFormSubmit(event) {
             event.preventDefault();
-            const studentSelect = document.getElementById('payment-student');
-            const selectedOption = studentSelect.options[studentSelect.selectedIndex];
+            const studentId = document.getElementById('payment-student').value;
+            const student = appData.students.find(s => s.id === studentId);
+            if (!student) {
+                alert("حدث خطأ: لم يتم العثور على الطالب.");
+                return;
+            }
+            const groupIds = Array.isArray(student?.groupIds) ? student.groupIds : (student?.groupId ? [student.groupId] : []);
+
+            let groupIdForPayment;
+            if (groupIds.length > 1) {
+                groupIdForPayment = document.getElementById('payment-group-selector').value;
+                if (!groupIdForPayment) {
+                    alert("يرجى تحديد المجموعة التي يتم الدفع لها.");
+                    return;
+                }
+            } else if (groupIds.length === 1) {
+                groupIdForPayment = groupIds[0];
+            } else {
+                alert("لا يمكن تسجيل دفعة لطالب غير مسجل في أي مجموعة.");
+                return;
+            }
 
             const paymentData = {
-                studentId: selectedOption.value,
-                groupId: selectedOption.dataset.groupid,
+                studentId: studentId,
+                groupId: groupIdForPayment,
                 amount: parseFloat(document.getElementById('payment-amount').value),
                 paymentDate: document.getElementById('payment-date').value,
                 paymentForMonth: parseInt(document.getElementById('payment-for-month').value),
@@ -1301,11 +1298,9 @@
             }
 
             try {
-                const docRef = await addDoc(collection(db, "payments"), paymentData);
+                await addDoc(collection(db, "payments"), paymentData);
                 alert('تم تسجيل الدفعة بنجاح.');
                 closeModal('payment-modal');
-                // Optional: Immediately generate and show invoice
-                // generateInvoice(docRef.id);
             } catch (error) {
                 console.error("Error saving payment:", error);
                 alert("فشل تسجيل الدفعة.");
@@ -1330,12 +1325,13 @@
                 const paymentDate = p.paymentDate || p.timestamp?.toDate().toLocaleDateString('ar-EG') || 'N/A';
                 const paymentFor = p.paymentForYear ? `${new Date(0, p.paymentForMonth - 1).toLocaleString('ar-EG', { month: 'long' })} ${p.paymentForYear}` : (p.month || 'N/A');
 
+                const amount = Number(p.amount) || 0;
                 return `
                     <tr class="border-b">
                         <td class="py-2 px-4">${paymentDate}</td>
                         <td class="py-2 px-4">${student?.name || 'طالب محذوف'}</td>
                         <td class="py-2 px-4">${group?.name || 'N/A'}</td>
-                        <td class="py-2 px-4">${p.amount.toFixed(2)} جنيه</td>
+                        <td class="py-2 px-4">${amount.toFixed(2)} جنيه</td>
                         <td class="py-2 px-4">${paymentFor}</td>
                         <td class="py-2 px-4">${p.notes || ''}</td>
                         <td class="py-2 px-4 no-print space-x-2 space-x-reverse">
@@ -1496,7 +1492,15 @@
             const student = studentId ? appData.students.find(s => s.id === studentId) : null;
             const title = student ? 'تعديل بيانات طالب' : 'إضافة طالب جديد';
             
-            let groupsOptions = appData.groups.map(g => `<option value="${g.id}" ${student?.groupId === g.id ? 'selected' : ''}>${g.name}</option>`).join('');
+            // Handle both new `groupIds` (array) and old `groupId` (string)
+            const studentGroupIds = new Set(Array.isArray(student?.groupIds) ? student.groupIds : (student?.groupId ? [student.groupId] : []));
+
+            let groupsCheckboxes = appData.groups.map(g => `
+                <label class="flex items-center p-2 rounded-lg hover:bg-gray-100">
+                    <input type="checkbox" name="student-group-checkbox" value="${g.id}" class="form-checkbox h-5 w-5 text-blue-600" ${studentGroupIds.has(g.id) ? 'checked' : ''}>
+                    <span class="ms-3 text-gray-700">${g.name}</span>
+                </label>
+            `).join('');
 
             const modalContent = `
                 <h3 class="text-2xl font-bold mb-6">${title}</h3>
@@ -1505,12 +1509,15 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <input type="text" id="student-code" placeholder="كود الطالب" class="p-2 border rounded-lg w-full" value="${student?.studentCode || ''}" required>
                         <input type="text" id="student-name" placeholder="اسم الطالب" class="p-2 border rounded-lg w-full" value="${student?.name || ''}" required>
-                        <input type="text" id="student-grade" placeholder="المرحلة الدراسية" class="p-2 border rounded-lg w-full" value="${student?.grade || ''}" required>
-                        <input type="text" id="student-phone" placeholder="هاتف الطالب" class="p-2 border rounded-lg w-full" value="${student?.phone || ''}" required>
-                        <select id="student-group" class="p-2 border rounded-lg w-full" required>
-                            <option value="">-- اختر المجموعة --</option>
-                            ${groupsOptions}
-                        </select>
+                        <input type="text" id="student-grade" placeholder="المرحلة الدراسية" class="p-2 border rounded-lg w-full" value="${student?.grade || ''}">
+                        <input type="text" id="student-phone" placeholder="هاتف الطالب" class="p-2 border rounded-lg w-full" value="${student?.phone || ''}">
+
+                        <div class="md:col-span-2">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">المجموعات المسجل بها:</label>
+                            <div class="p-2 border rounded-lg max-h-48 overflow-y-auto space-y-1">
+                                ${groupsCheckboxes || '<p class="text-gray-500 text-center p-4">لا توجد مجموعات متاحة. يرجى إضافة مجموعات أولاً.</p>'}
+                            </div>
+                        </div>
                     </div>
                     <div class="flex justify-end space-x-4 space-x-reverse mt-6">
                         <button type="button" onclick="closeModal('student-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إلغاء</button>
@@ -1518,19 +1525,26 @@
                     </div>
                 </form>
             `;
-            renderModal('student-modal', modalContent);
+            renderModal('student-modal', modalContent, 'max-w-2xl');
             document.getElementById('student-form').onsubmit = handleStudentFormSubmit;
         }
 
         async function handleStudentFormSubmit(event) {
             event.preventDefault();
             const studentId = document.getElementById('student-id-hidden').value;
+            const selectedGroupIds = Array.from(document.querySelectorAll('input[name="student-group-checkbox"]:checked')).map(el => el.value);
+
+            if (selectedGroupIds.length === 0) {
+                alert("يجب تسجيل الطالب في مجموعة واحدة على الأقل.");
+                return;
+            }
+
             const studentData = {
                 studentCode: document.getElementById('student-code').value,
                 name: document.getElementById('student-name').value,
                 grade: document.getElementById('student-grade').value,
                 phone: document.getElementById('student-phone').value,
-                groupId: document.getElementById('student-group').value
+                groupIds: selectedGroupIds, // Use the new array field
             };
             
             try {
@@ -1721,8 +1735,10 @@
             const tableBody = document.getElementById('attendance-log-body');
             if(!tableBody) return;
 
-            // Sort attendance by timestamp descending
-            const sortedAttendance = [...appData.attendance].sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+            // Sort attendance by timestamp descending, limit to last 100 for performance
+            const sortedAttendance = [...appData.attendance]
+                .sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0))
+                .slice(0, 100);
 
             tableBody.innerHTML = sortedAttendance.map(record => {
                 const student = appData.students.find(s => s.id === record.studentId);
@@ -1738,66 +1754,208 @@
             }).join('');
         }
 
-        window.handleAttendanceRecording = async function() {
-            const studentCodeInput = document.getElementById('attendance-student-code');
-            const studentCode = studentCodeInput.value.trim();
-            const statusEl = document.getElementById('attendance-status');
-            if (!studentCode) return;
+        function renderAttendanceStudentList(event) {
+            const groupId = event.target.value;
+            const container = document.getElementById('attendance-student-list-container');
 
-            statusEl.textContent = 'جار البحث...';
-            statusEl.className = 'mt-4 text-center h-5 text-gray-500';
+            if (!groupId) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const studentsInGroup = appData.students.filter(s => {
+                const studentGroupIds = Array.isArray(s.groupIds) ? s.groupIds : [s.groupId];
+                return studentGroupIds.includes(groupId);
+            });
+
+            if (studentsInGroup.length === 0) {
+                container.innerHTML = '<div class="bg-white p-6 rounded-lg shadow-md text-center text-gray-500">لا يوجد طلاب مسجلون في هذه المجموعة.</div>';
+                return;
+            }
+
+            const studentCheckboxes = studentsInGroup.map(s => `
+                <label class="flex items-center p-3 border-b hover:bg-gray-50">
+                    <input type="checkbox" name="attendance-checkbox" value="${s.id}" class="form-checkbox h-5 w-5 text-blue-600">
+                    <span class="ms-4 text-gray-800">${s.name}</span>
+                    <span class="ms-auto text-sm text-gray-500">(${s.studentCode || 'لا يوجد كود'})</span>
+                </label>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="bg-white p-6 rounded-lg shadow-md no-print">
+                    <h3 class="text-xl font-bold mb-4">2. حدد الطلاب الحاضرين</h3>
+                    <div id="student-checkbox-list" class="border rounded-lg max-h-96 overflow-y-auto mb-4">
+                        ${studentCheckboxes}
+                    </div>
+                    <p id="attendance-status" class="mt-4 text-center h-5"></p>
+                    <button onclick="handleBulkAttendance('${groupId}')" class="bg-blue-500 text-white w-full py-3 rounded-lg hover:bg-blue-600 font-bold">حفظ الحضور</button>
+                </div>
+            `;
+        }
+
+        async function handleBulkAttendance(groupId) {
+            const selectedStudentIds = Array.from(document.querySelectorAll('input[name="attendance-checkbox"]:checked')).map(el => el.value);
+            const statusEl = document.getElementById('attendance-status');
+
+            if (selectedStudentIds.length === 0) {
+                alert("يرجى تحديد طالب واحد على الأقل.");
+                return;
+            }
+
+            statusEl.textContent = 'جاري حفظ الحضور...';
+            statusEl.className = 'mt-4 mb-2 text-center h-5 text-gray-500';
 
             try {
-                // Find student by code
-                const studentQuery = query(collection(db, "students"), where("studentCode", "==", studentCode));
-                const studentSnapshot = await getDocs(studentQuery);
-
-                if (studentSnapshot.empty) {
-                    statusEl.textContent = 'لم يتم العثور على طالب بهذا الكود.';
-                    statusEl.className = 'mt-4 text-center h-5 text-red-500';
-                    return;
-                }
-
-                const studentDoc = studentSnapshot.docs[0];
-                const student = { id: studentDoc.id, ...studentDoc.data() };
-
-                // Check if student already attended today
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const tomorrow = new Date(today);
-                tomorrow.setDate(tomorrow.getDate() + 1);
-
-                const attendanceQuery = query(collection(db, "attendance"),
-                    where("studentId", "==", student.id),
-                    where("timestamp", ">=", today),
-                    where("timestamp", "<", tomorrow)
-                );
-                const todayAttendanceSnapshot = await getDocs(attendanceQuery);
-
-                if (!todayAttendanceSnapshot.empty) {
-                    statusEl.textContent = `تم تسجيل حضور الطالب ${student.name} بالفعل اليوم.`;
-                    statusEl.className = 'mt-4 text-center h-5 text-amber-500';
-                    studentCodeInput.value = '';
-                    return;
-                }
-
-                // Record new attendance
-                await addDoc(collection(db, "attendance"), {
-                    studentId: student.id,
-                    groupId: student.groupId,
-                    timestamp: serverTimestamp()
+                const batch = writeBatch(db);
+                selectedStudentIds.forEach(studentId => {
+                    const attendanceRef = doc(collection(db, "attendance"));
+                    batch.set(attendanceRef, {
+                        studentId: studentId,
+                        groupId: groupId,
+                        timestamp: serverTimestamp()
+                    });
                 });
 
-                statusEl.textContent = `تم تسجيل حضور الطالب: ${student.name}`;
-                statusEl.className = 'mt-4 text-center h-5 text-green-500';
-                studentCodeInput.value = '';
+                await batch.commit();
+
+                statusEl.textContent = `تم تسجيل حضور ${selectedStudentIds.length} طالب بنجاح!`;
+                statusEl.className = 'mt-4 mb-2 text-center h-5 text-green-500';
+
+                // Uncheck all boxes after successful submission
+                document.querySelectorAll('input[name="attendance-checkbox"]:checked').forEach(el => el.checked = false);
 
             } catch (error) {
-                console.error("Error recording attendance:", error);
+                console.error("Error recording bulk attendance:", error);
                 statusEl.textContent = 'حدث خطأ أثناء تسجيل الحضور.';
-                statusEl.className = 'mt-4 text-center h-5 text-red-500';
+                statusEl.className = 'mt-4 mb-2 text-center h-5 text-red-500';
             }
         }
+
+        // --- Student Report Generation ---
+        window.generateStudentReport = async function(studentId) {
+            const student = appData.students.find(s => s.id === studentId);
+            if (!student) {
+                alert("لم يتم العثور على الطالب.");
+                return;
+            }
+
+            // Show a loading indicator in a modal while fetching data
+            renderModal('student-report-modal', '<div class="flex justify-center items-center p-8"><div class="loader"></div></div>', 'max-w-4xl');
+
+            // Gather all related data
+            const studentGroupIds = Array.isArray(student.groupIds) ? student.groupIds : (student.groupId ? [student.groupId] : []);
+            const studentGroups = appData.groups.filter(g => studentGroupIds.includes(g.id));
+            const studentGroupNames = studentGroups.map(g => g.name).join(', ');
+
+            const payments = appData.payments
+                .filter(p => p.studentId === studentId)
+                .sort((a, b) => (b.createdAt?.toMillis() || b.timestamp?.toMillis() || 0) - (a.createdAt?.toMillis() || a.timestamp?.toMillis() || 0));
+
+            const attendance = appData.attendance
+                .filter(a => a.studentId === studentId)
+                .sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
+
+            // Fetch exam results asynchronously from all of the student's groups
+            const studentExams = appData.exams.filter(e => studentGroupIds.includes(e.groupId));
+            const examResults = [];
+            for (const exam of studentExams) {
+                try {
+                    const resultRef = doc(db, `exams/${exam.id}/results`, studentId);
+                    const resultSnap = await getDoc(resultRef);
+                    if (resultSnap.exists()) {
+                        examResults.push({
+                            examName: exam.name,
+                            maxScore: Number(exam.maxScore) || 0,
+                            score: Number(resultSnap.data().score) || 0
+                        });
+                    }
+                } catch (error) {
+                    console.error(`Could not fetch results for exam ${exam.id}`, error);
+                }
+            }
+
+            // Build HTML for each section
+            const paymentsHtml = payments.length > 0 ? payments.map(p => `
+                <tr class="border-b">
+                    <td class="py-2 px-4">${p.paymentDate || p.timestamp?.toDate().toLocaleDateString('ar-EG') || 'N/A'}</td>
+                    <td class="py-2 px-4">${(Number(p.amount) || 0).toFixed(2)} جنيه</td>
+                    <td class="py-2 px-4">${p.paymentForYear ? `${new Date(0, p.paymentForMonth - 1).toLocaleString('ar-EG', { month: 'long' })} ${p.paymentForYear}` : (p.month || 'N/A')}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="3" class="text-center py-2 text-gray-500">لا توجد مدفوعات مسجلة</td></tr>';
+
+            const attendanceHtml = attendance.length > 0 ? attendance.map(a => `
+                <tr class="border-b">
+                    <td class="py-2 px-4">${a.timestamp.toDate().toLocaleDateString('ar-EG')}</td>
+                    <td class="py-2 px-4">${a.timestamp.toDate().toLocaleTimeString('ar-EG')}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="2" class="text-center py-2 text-gray-500">لا يوجد سجل حضور</td></tr>';
+
+            const examResultsHtml = examResults.length > 0 ? examResults.map(r => `
+                <tr class="border-b">
+                    <td class="py-2 px-4">${r.examName}</td>
+                    <td class="py-2 px-4 font-mono">${r.score} / ${r.maxScore}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="2" class="text-center py-2 text-gray-500">لا توجد نتائج امتحانات مسجلة</td></tr>';
+
+            // Assemble the final modal content
+            const modalContent = `
+                <div class="printable-area p-6 sm:p-8" id="student-report-content">
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold">تقرير الطالب الشامل</h2>
+                        <p class="text-gray-500">Master English Center</p>
+                    </div>
+
+                    <div class="bg-gray-100 p-4 rounded-lg mb-6">
+                        <h3 class="text-xl font-bold mb-2 border-b-2 border-gray-300 pb-1">بيانات الطالب</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                            <p><strong>الاسم:</strong> ${student.name}</p>
+                            <p><strong>الكود:</strong> ${student.studentCode || 'N/A'}</p>
+                            <p><strong>المرحلة:</strong> ${student.grade || 'N/A'}</p>
+                            <p><strong>الهاتف:</strong> ${student.phone || 'N/A'}</p>
+                            <p class="sm:col-span-2"><strong>المجموعات المسجل بها:</strong> ${studentGroupNames || 'غير مسجل'}</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div>
+                            <h3 class="text-xl font-bold mb-2">السجل المالي</h3>
+                            <div class="overflow-y-auto max-h-64 border rounded-lg">
+                                <table class="min-w-full bg-white">
+                                    <thead class="bg-gray-800 text-white sticky top-0"><tr><th class="py-2 px-4 text-right">تاريخ الدفع</th><th class="py-2 px-4 text-right">المبلغ</th><th class="py-2 px-4 text-right">عن شهر</th></tr></thead>
+                                    <tbody>${paymentsHtml}</tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold mb-2">نتائج الامتحانات</h3>
+                            <div class="overflow-y-auto max-h-64 border rounded-lg">
+                                <table class="min-w-full bg-white">
+                                    <thead class="bg-gray-800 text-white sticky top-0"><tr><th class="py-2 px-4 text-right">الامتحان</th><th class="py-2 px-4 text-right">الدرجة</th></tr></thead>
+                                    <tbody>${examResultsHtml}</tbody>
+                                </table>
+                            </div>
+                        </div>
+                         <div class="lg:col-span-2">
+                            <h3 class="text-xl font-bold mb-2">سجل الحضور</h3>
+                             <div class="overflow-y-auto max-h-64 border rounded-lg">
+                                <table class="min-w-full bg-white">
+                                    <thead class="bg-gray-800 text-white sticky top-0"><tr><th class="py-2 px-4 text-right">التاريخ</th><th class="py-2 px-4 text-right">الوقت</th></tr></thead>
+                                    <tbody>${attendanceHtml}</tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-4 space-x-reverse mt-6 no-print">
+                    <button type="button" onclick="closeModal('student-report-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إغلاق</button>
+                    <button type="button" onclick="printReport('student-report-content')" class="bg-blue-500 text-white px-6 py-2 rounded-lg">طباعة التقرير</button>
+                </div>
+            `;
+
+            const modalContainer = document.getElementById('student-report-modal');
+            modalContainer.innerHTML = `<div class="bg-white p-4 sm:p-8 rounded-lg shadow-xl w-full max-w-4xl modal" onclick="event.stopPropagation()">${modalContent}</div>`;
+        }
+
 
         // --- Generic Functions ---
         window.printReport = function(containerId) {
