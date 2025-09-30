@@ -2358,141 +2358,151 @@
         function renderReportsPage() {
             const container = document.getElementById('page-content');
             const currentYear = new Date().getFullYear();
-            const currentMonth = new Date().getMonth() + 1;
-
-            const monthsOptions = Array.from({length: 12}, (_, i) => {
-                const month = i + 1;
-                return `<option value="${month}" ${month === currentMonth ? 'selected' : ''}>${new Date(0, i).toLocaleString('ar-EG', { month: 'long' })}</option>`;
-            }).join('');
 
             const yearsOptions = Array.from({length: 5}, (_, i) => {
                 const year = currentYear - 2 + i;
                 return `<option value="${year}" ${year === currentYear ? 'selected' : ''}>${year}</option>`;
             }).join('');
 
-            // appData.groups is already correctly scoped for both admins and teachers by setupRealtimeListeners
             const groupOptions = appData.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
 
             container.innerHTML = `
                 <div id="reports-page" class="page">
-                    <h2 class="text-2xl sm:text-3xl font-bold mb-6">التقارير المالية والتحليلات</h2>
+                    <h2 class="text-2xl sm:text-3xl font-bold mb-6">لوحة المتابعة المالية</h2>
 
                     <div class="bg-white p-6 rounded-lg shadow-md no-print">
-                        <h3 class="text-xl font-bold mb-4">تقرير الطلاب غير المسددين</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                        <h3 class="text-xl font-bold mb-4">اختر لعرض سجل المتابعة السنوي</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                             <div>
-                                <label for="report-month" class="block text-sm font-medium text-gray-700">الشهر</label>
-                                <select id="report-month" class="p-2 border rounded-lg w-full mt-1">${monthsOptions}</select>
-                            </div>
-                            <div>
-                                <label for="report-year" class="block text-sm font-medium text-gray-700">السنة</label>
-                                <select id="report-year" class="p-2 border rounded-lg w-full mt-1">${yearsOptions}</select>
-                            </div>
-                            <div>
-                                <label for="report-group" class="block text-sm font-medium text-gray-700">المجموعة (اختياري)</label>
-                                <select id="report-group" class="p-2 border rounded-lg w-full mt-1">
-                                    <option value="">كل المجموعات</option>
+                                <label for="status-report-group" class="block text-sm font-medium text-gray-700">المجموعة</label>
+                                <select id="status-report-group" class="p-2 border rounded-lg w-full mt-1" required>
+                                    <option value="">-- اختر مجموعة --</option>
                                     ${groupOptions}
                                 </select>
                             </div>
-                            <button onclick="handleUnpaidStudentsReport()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 h-10">إنشاء التقرير</button>
+                            <div>
+                                <label for="status-report-year" class="block text-sm font-medium text-gray-700">السنة</label>
+                                <select id="status-report-year" class="p-2 border rounded-lg w-full mt-1">${yearsOptions}</select>
+                            </div>
+                            <button onclick="handleFinancialStatusReport()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 h-10">عرض لوحة المتابعة</button>
                         </div>
                     </div>
 
                     <div id="report-results-container" class="mt-8">
-                        <!-- Report results will be rendered here -->
+                        <!-- Financial Status Dashboard will be rendered here -->
                     </div>
                 </div>
             `;
         }
 
-        function handleUnpaidStudentsReport() {
-            const month = parseInt(document.getElementById('report-month').value);
-            const year = parseInt(document.getElementById('report-year').value);
-            const filterGroupId = document.getElementById('report-group').value;
+        window.handleFinancialStatusReport = function() {
+            const groupId = document.getElementById('status-report-group').value;
+            const year = parseInt(document.getElementById('status-report-year').value);
             const resultsContainer = document.getElementById('report-results-container');
 
-            resultsContainer.innerHTML = '<div class="text-center py-4">جاري إنشاء التقرير...</div>';
-
-            const unpaidEntries = [];
-
-            // Determine which students to iterate over.
-            let studentsToCheck = appData.students;
-            if (currentUserData.role === 'teacher' && !currentUserData.role === 'admin') {
-                const teacherGroupIds = appData.groups.map(g => g.id);
-                 studentsToCheck = appData.students.filter(s => {
-                    const studentGroupIds = Array.isArray(s.groupIds) ? s.groupIds : (s.groupId ? [s.groupId] : []);
-                    return studentGroupIds.some(sgid => teacherGroupIds.includes(sgid));
-                });
-            }
-
-            studentsToCheck.forEach(student => {
-                const studentGroupIds = Array.isArray(student.groupIds) ? student.groupIds : (student.groupId ? [student.groupId] : []);
-
-                studentGroupIds.forEach(studentGroupId => {
-                    // If a specific group is selected for the report, and this isn't it, skip.
-                    if (filterGroupId && studentGroupId !== filterGroupId) {
-                        return; // continue
-                    }
-
-                    // Check if a payment exists for this specific student, for this specific group, for this specific month/year.
-                    const hasPaid = appData.payments.some(p =>
-                        p.studentId === student.id &&
-                        p.groupId === studentGroupId &&
-                        p.paymentForMonth === month &&
-                        p.paymentForYear === year
-                    );
-
-                    if (!hasPaid) {
-                        unpaidEntries.push({
-                            student: student,
-                            group: appData.groups.find(g => g.id === studentGroupId)
-                        });
-                    }
-                });
-            });
-
-            // Render the results table
-            if (unpaidEntries.length === 0) {
-                resultsContainer.innerHTML = '<div class="bg-white p-6 rounded-lg shadow-md text-center text-green-600 font-bold">كل الطلاب في النطاق المحدد قد سددوا لهذا الشهر.</div>';
+            if (!groupId) {
+                alert("يرجى اختيار مجموعة أولاً.");
                 return;
             }
 
-            let tableRows = unpaidEntries.map(entry => {
-                const { student, group } = entry;
+            resultsContainer.innerHTML = '<div class="text-center py-4">جاري إنشاء لوحة المتابعة...</div>';
+
+            const group = appData.groups.find(g => g.id === groupId);
+            const groupPrice = Number(group?.price) || 0;
+            const studentsInGroup = appData.students.filter(s => (s.groupIds || []).includes(groupId));
+
+            const reportData = studentsInGroup.map(student => {
+                let totalPaid = 0;
+                const monthlyStatus = Array.from({ length: 12 }, (_, i) => {
+                    const month = i + 1;
+                    const paymentsForMonth = appData.payments.filter(p =>
+                        p.studentId === student.id &&
+                        p.groupId === groupId &&
+                        p.paymentForYear === year &&
+                        p.paymentForMonth === month
+                    );
+
+                    const amountPaidForMonth = paymentsForMonth.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+                    totalPaid += amountPaidForMonth;
+
+                    let status = 'unpaid';
+                    if (amountPaidForMonth >= groupPrice && groupPrice > 0) {
+                        status = 'paid';
+                    } else if (amountPaidForMonth > 0) {
+                        status = 'partial';
+                    }
+
+                    return { status, amount: amountPaidForMonth };
+                });
+
+                const totalDueForYear = groupPrice * 12;
+                return {
+                    student,
+                    monthlyStatus,
+                    totalRemaining: totalDueForYear - totalPaid
+                };
+            });
+
+            renderFinancialStatusTable(reportData, group, year);
+        }
+
+        function renderFinancialStatusTable(reportData, group, year) {
+            const resultsContainer = document.getElementById('report-results-container');
+            const groupPrice = Number(group?.price) || 0;
+
+            const statusStyles = {
+                paid: { text: 'مسدد', class: 'bg-green-100 text-green-800' },
+                partial: { text: 'جزئي', class: 'bg-yellow-100 text-yellow-800' },
+                unpaid: { text: 'غير مسدد', class: 'bg-red-100 text-red-800' }
+            };
+
+            const monthHeaders = Array.from({ length: 12 }, (_, i) =>
+                `<th class="p-2 border-s min-w-[120px]">${new Date(0, i).toLocaleString('ar-EG', { month: 'long' })}</th>`
+            ).join('');
+
+            const bodyRows = reportData.map(data => {
+                const student = data.student;
+                const monthlyCells = data.monthlyStatus.map(monthData => {
+                    const style = statusStyles[monthData.status];
+                    let content = style.text;
+                    if (monthData.status === 'partial') {
+                        content = `${monthData.amount} / ${groupPrice}`;
+                    }
+                    return `<td class="p-2 border-s text-center font-semibold ${style.class}">${content}</td>`;
+                }).join('');
+
                 return `
                     <tr class="border-b">
-                        <td class="py-2 px-4">${student.studentCode || 'N/A'}</td>
-                        <td class="py-2 px-4">${student.name}</td>
-                        <td class="py-2 px-4">${group?.name || 'مجموعة محذوفة'}</td>
-                        <td class="py-2 px-4">${student.phone || 'N/A'}</td>
+                        <th class="p-2 text-right sticky left-0 bg-white min-w-[200px]">${student.name}</th>
+                        ${monthlyCells}
+                        <td class="p-2 border-s text-center font-bold">${data.totalRemaining > 0 ? data.totalRemaining.toFixed(2) : 0}</td>
                     </tr>
                 `;
             }).join('');
 
-            const monthName = new Date(0, month - 1).toLocaleString('ar-EG', { month: 'long' });
-            const groupName = filterGroupId ? appData.groups.find(g=>g.id===filterGroupId).name : 'كل المجموعات';
-
             resultsContainer.innerHTML = `
-                <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto printable-area" id="unpaid-report-printable">
-                    <div class="flex justify-between items-center mb-4">
+                <div class="bg-white p-6 rounded-lg shadow-md printable-area" id="financial-status-printable">
+                     <div class="flex justify-between items-center mb-4">
                         <div>
-                            <h3 class="text-xl font-bold">تقرير الطلاب غير المسددين عن: ${monthName} ${year}</h3>
-                            <p class="text-gray-600">المجموعة: ${groupName}</p>
+                            <h3 class="text-xl font-bold">لوحة المتابعة المالية لـ: ${group.name} - ${year}</h3>
+                            <p class="text-gray-600">سعر المجموعة الشهري: ${groupPrice} جنيه</p>
                         </div>
-                        <button onclick="printReport('unpaid-report-printable')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 no-print"><i class="fas fa-print mr-2"></i> طباعة</button>
+                        <button onclick="printReport('financial-status-printable')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 no-print"><i class="fas fa-print mr-2"></i> طباعة</button>
                     </div>
-                    <table class="min-w-full bg-white">
-                        <thead class="bg-gray-800 text-white">
-                            <tr>
-                                <th class="py-3 px-4 text-right">الكود</th>
-                                <th class="py-3 px-4 text-right">الاسم</th>
-                                <th class="py-3 px-4 text-right">المجموعة المستحقة</th>
-                                <th class="py-3 px-4 text-right">الهاتف</th>
-                            </tr>
-                        </thead>
-                        <tbody>${tableRows}</tbody>
-                    </table>
+                    <div class="overflow-x-auto border rounded-lg">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-800 text-white">
+                                <tr>
+                                    <th class="p-2 text-right sticky left-0 bg-gray-800 z-10 min-w-[200px]">الطالب</th>
+                                    ${monthHeaders}
+                                    <th class="p-2 border-s min-w-[120px]">إجمالي المتبقي</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${bodyRows.length > 0 ? bodyRows : '<tr><td colspan="14" class="text-center p-4 text-gray-500">لا يوجد طلاب في هذه المجموعة لعرض حالتهم المالية.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
                     <div class="text-center text-xs text-gray-500 mt-6 pt-4 border-t print-only">
                         <p>نحيطكم علما بأنه قد تم إنشاء النظام بتاريخ 29 سبتمبر لذلك قد يظهر تاريخ أى معاملة سابقة فى غير تاريخه.</p>
                         <p>ملحوظة: هذه للمعاملات التى تمت قبل يوم 29 سبتمبر فقط.</p>
