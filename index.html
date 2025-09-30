@@ -882,50 +882,36 @@
         function renderAttendancePage() {
             const container = document.getElementById('page-content');
 
-            const groupOptions = appData.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+            const groupCards = appData.groups.map(g => `
+                <div class="bg-white p-4 rounded-lg shadow-md flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div>
+                        <h3 class="font-bold text-lg text-gray-800">${g.name}</h3>
+                        <p class="text-sm text-gray-500">${g.schedule?.days?.join(', ') || 'ايام غير محددة'} - ${g.schedule?.time || 'وقت غير محدد'}</p>
+                    </div>
+                    <div class="flex space-x-2 space-x-reverse">
+                        <button onclick="viewSessionHistory('${g.id}')" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 text-sm font-semibold">
+                            <i class="fas fa-history mr-1"></i>سجل الجلسات
+                        </button>
+                        <button onclick="openAttendanceSessionModal('${g.id}')" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 text-sm font-semibold">
+                            <i class="fas fa-plus mr-1"></i>بدء جلسة جديدة
+                        </button>
+                    </div>
+                </div>
+            `).join('');
 
             container.innerHTML = `
                 <div id="attendance-page" class="page">
                     <h2 class="text-2xl sm:text-3xl font-bold mb-6">تسجيل الحضور والغياب</h2>
 
-                    <div class="bg-white p-6 rounded-lg shadow-md mb-6 no-print">
-                        <h3 class="text-xl font-bold mb-4">1. اختر المجموعة</h3>
-                        <div class="flex items-center space-x-4 space-x-reverse">
-                            <select id="attendance-group-selector" class="p-2 border rounded-lg w-full">
-                                <option value="">-- اختر مجموعة لبدء التسجيل --</option>
-                                ${groupOptions}
-                            </select>
-                        </div>
+                    <div class="space-y-4">
+                        ${groupCards.length > 0 ? groupCards : '<div class="bg-white p-6 rounded-lg shadow-md text-center text-gray-500">لا توجد مجموعات لعرضها. يرجى إضافة مجموعات أولاً.</div>'}
                     </div>
 
-                    <div id="attendance-student-list-container">
-                        <!-- Students of the selected group will be rendered here -->
-                    </div>
-
-                    <div class="bg-white p-6 rounded-lg shadow-md printable-area mt-8">
-                        <div class="flex justify-between items-center mb-4 no-print">
-                            <h3 class="text-xl font-bold">سجل الحضور اليومي (آخر 100)</h3>
-                            <button onclick="printReport('attendance-page')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"><i class="fas fa-print mr-2"></i> طباعة</button>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table id="attendance-log-table" class="min-w-full bg-white">
-                                <thead class="bg-gray-800 text-white">
-                                    <tr>
-                                        <th class="py-3 px-4 text-right">كود الطالب</th>
-                                        <th class="py-3 px-4 text-right">اسم الطالب</th>
-                                        <th class="py-3 px-4 text-right">المجموعة</th>
-                                        <th class="py-3 px-4 text-right">التاريخ والوقت</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="attendance-log-body"></tbody>
-                            </table>
-                        </div>
+                    <div id="session-history-container" class="mt-8">
+                        <!-- Session history for a selected group will be loaded here -->
                     </div>
                 </div>
             `;
-
-            document.getElementById('attendance-group-selector').addEventListener('change', renderAttendanceStudentList);
-            renderAttendanceTable();
         }
 
         function renderExamsPage() {
@@ -1893,104 +1879,222 @@
         }
 
         // --- Attendance Functions ---
-        function renderAttendanceTable() {
-            const tableBody = document.getElementById('attendance-log-body');
-            if(!tableBody) return;
-
-            // Sort attendance by timestamp descending, limit to last 100 for performance
-            const sortedAttendance = [...appData.attendance]
-                .sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0))
-                .slice(0, 100);
-
-            tableBody.innerHTML = sortedAttendance.map(record => {
-                const student = appData.students.find(s => s.id === record.studentId);
-                const group = appData.groups.find(g => g.id === record.groupId);
-                return `
-                    <tr class="border-b">
-                        <td class="py-2 px-4">${student?.studentCode || 'N/A'}</td>
-                        <td class="py-2 px-4">${student?.name || 'طالب محذوف'}</td>
-                        <td class="py-2 px-4">${group?.name || 'مجموعة محذوفة'}</td>
-                        <td class="py-2 px-4">${record.timestamp.toDate().toLocaleString('ar-EG')}</td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        function renderAttendanceStudentList(event) {
-            const groupId = event.target.value;
-            const container = document.getElementById('attendance-student-list-container');
-
-            if (!groupId) {
-                container.innerHTML = '';
-                return;
-            }
+        window.openAttendanceSessionModal = function(groupId) {
+            const group = appData.groups.find(g => g.id === groupId);
+            if (!group) return alert("لم يتم العثور على المجموعة.");
 
             const studentsInGroup = appData.students.filter(s => {
-                const studentGroupIds = Array.isArray(s.groupIds) ? s.groupIds : [s.groupId];
+                const studentGroupIds = Array.isArray(s.groupIds) ? s.groupIds : (s.groupId ? [s.groupId] : []);
                 return studentGroupIds.includes(groupId);
             });
 
             if (studentsInGroup.length === 0) {
-                container.innerHTML = '<div class="bg-white p-6 rounded-lg shadow-md text-center text-gray-500">لا يوجد طلاب مسجلون في هذه المجموعة.</div>';
+                return alert("لا يوجد طلاب مسجلون في هذه المجموعة.");
+            }
+
+            const studentRows = studentsInGroup.map(student => `
+                <tr class="border-b">
+                    <td class="p-3">${student.name}</td>
+                    <td class="p-3">
+                        <div class="flex items-center gap-x-4">
+                            <label class="flex items-center"><input type="radio" name="status-${student.id}" value="present" class="form-radio" checked><span class="ms-2">حاضر</span></label>
+                            <label class="flex items-center"><input type="radio" name="status-${student.id}" value="absent" class="form-radio"><span class="ms-2">غائب</span></label>
+                            <label class="flex items-center"><input type="radio" name="status-${student.id}" value="late" class="form-radio"><span class="ms-2">متأخر</span></label>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+
+            const modalContent = `
+                <h3 class="text-2xl font-bold mb-4">بدء جلسة حضور جديدة</h3>
+                <p class="text-gray-600 mb-6">المجموعة: ${group.name}</p>
+                <form id="attendance-session-form">
+                    <div class="max-h-[60vh] overflow-y-auto border rounded-lg">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-800 text-white sticky top-0">
+                                <tr>
+                                    <th class="p-3 text-right">اسم الطالب</th>
+                                    <th class="p-3 text-right">الحالة</th>
+                                </tr>
+                            </thead>
+                            <tbody>${studentRows}</tbody>
+                        </table>
+                    </div>
+                    <div class="flex justify-end space-x-4 space-x-reverse mt-6">
+                        <button type="button" onclick="closeModal('attendance-session-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إلغاء</button>
+                        <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-lg">حفظ الجلسة</button>
+                    </div>
+                </form>
+            `;
+
+            renderModal('attendance-session-modal', modalContent, 'max-w-3xl');
+            document.getElementById('attendance-session-form').onsubmit = (e) => {
+                e.preventDefault();
+                handleSaveAttendanceSession(groupId);
+            };
+        }
+
+        window.handleSaveAttendanceSession = async function(groupId) {
+            const form = document.getElementById('attendance-session-form');
+            if (!form) return;
+
+            const studentRadios = form.querySelectorAll('input[type="radio"]');
+            const attendanceData = {}; // { studentId: 'status' }
+
+            studentRadios.forEach(radio => {
+                if (radio.checked) {
+                    const studentId = radio.name.replace('status-', '');
+                    attendanceData[studentId] = radio.value;
+                }
+            });
+
+            if (Object.keys(attendanceData).length === 0) {
+                alert("لا يوجد طلاب لحفظ حالتهم.");
                 return;
             }
 
-            const studentCheckboxes = studentsInGroup.map(s => `
-                <label class="flex items-center p-3 border-b hover:bg-gray-50">
-                    <input type="checkbox" name="attendance-checkbox" value="${s.id}" class="form-checkbox h-5 w-5 text-blue-600">
-                    <span class="ms-4 text-gray-800">${s.name}</span>
-                    <span class="ms-auto text-sm text-gray-500">(${s.studentCode || 'لا يوجد كود'})</span>
-                </label>
-            `).join('');
+            const sessionId = doc(collection(db, "attendance")).id; // Generate a unique ID for the session
+            const batch = writeBatch(db);
+            const sessionTimestamp = serverTimestamp();
+
+            for (const studentId in attendanceData) {
+                const status = attendanceData[studentId];
+                const attendanceRef = doc(collection(db, "attendance"));
+                batch.set(attendanceRef, {
+                    studentId: studentId,
+                    groupId: groupId,
+                    sessionId: sessionId,
+                    status: status,
+                    timestamp: sessionTimestamp
+                });
+            }
+
+            try {
+                await batch.commit();
+                alert(`تم حفظ جلسة الحضور بنجاح!`);
+                closeModal('attendance-session-modal');
+                // Optionally refresh the session history if it's visible
+                if (document.getElementById('session-history-container').innerHTML !== '') {
+                    viewSessionHistory(groupId);
+                }
+            } catch (error) {
+                console.error("Error saving attendance session:", error);
+                alert("فشل حفظ جلسة الحضور.");
+            }
+        }
+
+        window.viewSessionHistory = async function(groupId) {
+            const container = document.getElementById('session-history-container');
+            const group = appData.groups.find(g => g.id === groupId);
+            container.innerHTML = `<div class="text-center py-4">جاري تحميل سجل الجلسات لمجموعة: ${group?.name || ''}...</div>`;
+
+            // Fetch all attendance records for this group
+            const attendanceQuery = query(collection(db, "attendance"), where("groupId", "==", groupId));
+            const snapshot = await getDocs(attendanceQuery);
+            const records = snapshot.docs.map(d => d.data());
+
+            if (records.length === 0) {
+                container.innerHTML = `<div class="bg-white p-6 rounded-lg shadow-md text-center text-gray-500">لا يوجد سجل جلسات لهذه المجموعة.</div>`;
+                return;
+            }
+
+            // Group records by sessionId
+            const sessions = {};
+            records.forEach(record => {
+                if (!record.sessionId) return; // Skip old records without a session ID
+                if (!sessions[record.sessionId]) {
+                    sessions[record.sessionId] = {
+                        timestamp: record.timestamp.toDate(),
+                        records: []
+                    };
+                }
+                sessions[record.sessionId].records.push(record);
+            });
+
+            // Sort sessions by date descending
+            const sortedSessions = Object.entries(sessions).sort((a, b) => b[1].timestamp - a[1].timestamp);
+
+            const historyRows = sortedSessions.map(([sessionId, sessionData]) => {
+                const presentCount = sessionData.records.filter(r => r.status === 'present').length;
+                const absentCount = sessionData.records.filter(r => r.status === 'absent').length;
+                const lateCount = sessionData.records.filter(r => r.status === 'late').length;
+                return `
+                    <tr class="border-b">
+                        <td class="p-3">${sessionData.timestamp.toLocaleString('ar-EG')}</td>
+                        <td class="p-3 text-green-600 font-semibold">${presentCount}</td>
+                        <td class="p-3 text-red-600 font-semibold">${absentCount}</td>
+                        <td class="p-3 text-amber-600 font-semibold">${lateCount}</td>
+                        <td class="p-3"><button onclick="viewSessionDetails('${sessionId}')" class="text-blue-500 hover:underline">عرض التفاصيل</button></td>
+                    </tr>
+                `;
+            }).join('');
 
             container.innerHTML = `
-                <div class="bg-white p-6 rounded-lg shadow-md no-print">
-                    <h3 class="text-xl font-bold mb-4">2. حدد الطلاب الحاضرين</h3>
-                    <div id="student-checkbox-list" class="border rounded-lg max-h-96 overflow-y-auto mb-4">
-                        ${studentCheckboxes}
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-bold mb-4">سجل الجلسات لـ: ${group?.name || ''}</h3>
+                    <div class="overflow-x-auto">
+                         <table class="min-w-full bg-white">
+                            <thead class="bg-gray-800 text-white">
+                                <tr>
+                                    <th class="p-3 text-right">تاريخ ووقت الجلسة</th>
+                                    <th class="p-3 text-right">حاضر</th>
+                                    <th class="p-3 text-right">غائب</th>
+                                    <th class="p-3 text-right">متأخر</th>
+                                    <th class="p-3 text-right">إجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody>${historyRows}</tbody>
+                        </table>
                     </div>
-                    <p id="attendance-status" class="mt-4 text-center h-5"></p>
-                    <button onclick="handleBulkAttendance('${groupId}')" class="bg-blue-500 text-white w-full py-3 rounded-lg hover:bg-blue-600 font-bold">حفظ الحضور</button>
                 </div>
             `;
         }
 
-        async function handleBulkAttendance(groupId) {
-            const selectedStudentIds = Array.from(document.querySelectorAll('input[name="attendance-checkbox"]:checked')).map(el => el.value);
-            const statusEl = document.getElementById('attendance-status');
+        window.viewSessionDetails = function(sessionId) {
+             const recordsForSession = appData.attendance.filter(a => a.sessionId === sessionId);
+             if (recordsForSession.length === 0) {
+                 return alert("لا يمكن العثور على تفاصيل هذه الجلسة.");
+             }
 
-            if (selectedStudentIds.length === 0) {
-                alert("يرجى تحديد طالب واحد على الأقل.");
-                return;
-            }
+             const group = appData.groups.find(g => g.id === recordsForSession[0].groupId);
+             const sessionDate = recordsForSession[0].timestamp.toDate().toLocaleString('ar-EG');
 
-            statusEl.textContent = 'جاري حفظ الحضور...';
-            statusEl.className = 'mt-4 mb-2 text-center h-5 text-gray-500';
+             const statusMap = {
+                 present: { text: 'حاضر', color: 'text-green-600' },
+                 absent: { text: 'غائب', color: 'text-red-600' },
+                 late: { text: 'متأخر', color: 'text-amber-600' }
+             };
 
-            try {
-                const batch = writeBatch(db);
-                selectedStudentIds.forEach(studentId => {
-                    const attendanceRef = doc(collection(db, "attendance"));
-                    batch.set(attendanceRef, {
-                        studentId: studentId,
-                        groupId: groupId,
-                        timestamp: serverTimestamp()
-                    });
-                });
+             const detailRows = recordsForSession.map(record => {
+                 const student = appData.students.find(s => s.id === record.studentId);
+                 const statusInfo = statusMap[record.status] || { text: record.status, color: '' };
+                 return `
+                     <tr class="border-b">
+                         <td class="p-3">${student?.name || 'طالب محذوف'}</td>
+                         <td class="p-3 ${statusInfo.color} font-semibold">${statusInfo.text}</td>
+                     </tr>
+                 `;
+             }).join('');
 
-                await batch.commit();
-
-                statusEl.textContent = `تم تسجيل حضور ${selectedStudentIds.length} طالب بنجاح!`;
-                statusEl.className = 'mt-4 mb-2 text-center h-5 text-green-500';
-
-                // Uncheck all boxes after successful submission
-                document.querySelectorAll('input[name="attendance-checkbox"]:checked').forEach(el => el.checked = false);
-
-            } catch (error) {
-                console.error("Error recording bulk attendance:", error);
-                statusEl.textContent = 'حدث خطأ أثناء تسجيل الحضور.';
-                statusEl.className = 'mt-4 mb-2 text-center h-5 text-red-500';
-            }
+             const modalContent = `
+                <h3 class="text-2xl font-bold mb-2">تفاصيل جلسة الحضور</h3>
+                <p class="text-gray-600 mb-6">المجموعة: ${group?.name || 'N/A'} - ${sessionDate}</p>
+                <div class="max-h-[60vh] overflow-y-auto border rounded-lg">
+                    <table class="min-w-full bg-white">
+                         <thead class="bg-gray-800 text-white sticky top-0">
+                            <tr>
+                                <th class="p-3 text-right">اسم الطالب</th>
+                                <th class="p-3 text-right">الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody>${detailRows}</tbody>
+                    </table>
+                </div>
+                 <div class="flex justify-end mt-6">
+                    <button type="button" onclick="closeModal('session-details-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إغلاق</button>
+                </div>
+             `;
+             renderModal('session-details-modal', modalContent, 'max-w-xl');
         }
 
         // --- Student Report Generation ---
@@ -2045,12 +2149,21 @@
                 </tr>
             `).join('') : '<tr><td colspan="3" class="text-center py-2 text-gray-500">لا توجد مدفوعات مسجلة</td></tr>';
 
-            const attendanceHtml = attendance.length > 0 ? attendance.map(a => `
-                <tr class="border-b">
-                    <td class="py-2 px-4">${a.timestamp.toDate().toLocaleDateString('ar-EG')}</td>
-                    <td class="py-2 px-4">${a.timestamp.toDate().toLocaleTimeString('ar-EG')}</td>
-                </tr>
-            `).join('') : '<tr><td colspan="2" class="text-center py-2 text-gray-500">لا يوجد سجل حضور</td></tr>';
+            const statusMap = {
+                 present: { text: 'حاضر', color: 'text-green-600' },
+                 absent: { text: 'غائب', color: 'text-red-600' },
+                 late: { text: 'متأخر', color: 'text-amber-600' }
+            };
+
+            const attendanceHtml = attendance.length > 0 ? attendance.map(a => {
+                const statusInfo = statusMap[a.status] || { text: 'غير محدد', color: '' };
+                return `
+                    <tr class="border-b">
+                        <td class="py-2 px-4">${a.timestamp.toDate().toLocaleString('ar-EG')}</td>
+                        <td class="py-2 px-4 ${statusInfo.color} font-semibold">${statusInfo.text}</td>
+                    </tr>
+                `;
+            }).join('') : '<tr><td colspan="2" class="text-center py-2 text-gray-500">لا يوجد سجل حضور</td></tr>';
 
             const examResultsHtml = examResults.length > 0 ? examResults.map(r => `
                 <tr class="border-b">
@@ -2102,7 +2215,7 @@
                             <h3 class="text-xl font-bold mb-2">سجل الحضور</h3>
                              <div class="overflow-auto max-h-64 border rounded-lg">
                                 <table class="min-w-full bg-white">
-                                    <thead class="bg-gray-800 text-white sticky top-0"><tr><th class="py-2 px-4 text-right">التاريخ</th><th class="py-2 px-4 text-right">الوقت</th></tr></thead>
+                                    <thead class="bg-gray-800 text-white sticky top-0"><tr><th class="py-2 px-4 text-right">تاريخ الجلسة</th><th class="py-2 px-4 text-right">الحالة</th></tr></thead>
                                     <tbody>${attendanceHtml}</tbody>
                                 </table>
                             </div>
