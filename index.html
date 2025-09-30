@@ -701,6 +701,107 @@
             `;
         }
 
+        function generateMonthlyStatusReport() {
+            const groupId = document.getElementById('report-group').value;
+            const year = parseInt(document.getElementById('report-year').value);
+            const month = parseInt(document.getElementById('report-month').value);
+            const resultsContainer = document.getElementById('report-results-container');
+
+            if (!groupId) {
+                alert("يرجى اختيار مجموعة أولاً.");
+                return;
+            }
+
+            resultsContainer.innerHTML = '<div class="text-center py-4">جاري إنشاء التقرير الشهري...</div>';
+
+            const group = appData.groups.find(g => g.id === groupId);
+            const groupPrice = Number(group?.price) || 0;
+            const studentsInGroup = appData.students.filter(s => (s.groupIds || []).includes(groupId));
+
+            const reportData = studentsInGroup.map(student => {
+                const paymentsForMonth = appData.payments.filter(p =>
+                    p.studentId === student.id &&
+                    p.groupId === groupId &&
+                    p.paymentForYear === year &&
+                    p.paymentForMonth === month
+                );
+
+                const amountPaidForMonth = paymentsForMonth.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+                let status = 'unpaid';
+                if (amountPaidForMonth >= groupPrice && groupPrice > 0) {
+                    status = 'paid';
+                } else if (amountPaidForMonth > 0) {
+                    status = 'partial';
+                }
+
+                return {
+                    student,
+                    status,
+                    amount: amountPaidForMonth,
+                    remaining: groupPrice - amountPaidForMonth
+                };
+            });
+
+            renderMonthlyStatusTable(reportData, group, year, month);
+        }
+
+        function renderMonthlyStatusTable(reportData, group, year, month) {
+            const resultsContainer = document.getElementById('report-results-container');
+            const groupPrice = Number(group?.price) || 0;
+            const monthName = new Date(year, month - 1).toLocaleString('ar-EG', { month: 'long' });
+
+            const statusStyles = {
+                paid: { text: 'مسدد', class: 'bg-green-100 text-green-800' },
+                partial: { text: 'جزئي', class: 'bg-yellow-100 text-yellow-800' },
+                unpaid: { text: 'غير مسدد', class: 'bg-red-100 text-red-800' }
+            };
+
+            const bodyRows = reportData.map(data => {
+                const { student, status, amount, remaining } = data;
+                const style = statusStyles[status];
+                return `
+                    <tr class="border-b">
+                        <th class="p-2 text-right">${student.name}</th>
+                        <td class="p-2 text-center font-semibold ${style.class}">${style.text}</td>
+                        <td class="p-2 text-center">${amount}</td>
+                        <td class="p-2 text-center">${remaining > 0 ? remaining.toFixed(2) : 0}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            resultsContainer.innerHTML = `
+                <div class="bg-white p-6 rounded-lg shadow-md printable-area" id="monthly-report-printable">
+                     <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h3 class="text-xl font-bold">تقرير الحالة المالية لـ: ${group.name}</h3>
+                            <p class="text-gray-600">عن شهر: ${monthName} ${year}</p>
+                        </div>
+                        <button onclick="printReport('monthly-report-printable')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 no-print"><i class="fas fa-print mr-2"></i> طباعة</button>
+                    </div>
+                    <div class="overflow-x-auto border rounded-lg">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-800 text-white">
+                                <tr>
+                                    <th class="p-2 text-right">الطالب</th>
+                                    <th class="p-2 text-center">الحالة</th>
+                                    <th class="p-2 text-center">المبلغ المدفوع</th>
+                                    <th class="p-2 text-center">المبلغ المتبقي</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${bodyRows.length > 0 ? bodyRows : '<tr><td colspan="4" class="text-center p-4 text-gray-500">لا يوجد طلاب في هذه المجموعة.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center text-xs text-gray-500 mt-6 pt-4 border-t print-only">
+                        <p>نحيطكم علما بأنه قد تم إنشاء النظام بتاريخ 29 سبتمبر لذلك قد يظهر تاريخ أى معاملة سابقة فى غير تاريخه.</p>
+                        <p>ملحوظة: هذه للمعاملات التى تمت قبل يوم 29 سبتمبر فقط.</p>
+                    </div>
+                </div>
+            `;
+        }
+
         window.renderGradebookForGroup = function(groupId) {
             const container = document.getElementById('gradebook-container');
             const group = appData.groups.find(g => g.id === groupId);
@@ -2366,38 +2467,59 @@
 
             const groupOptions = appData.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
 
+            const monthsOptions = Array.from({length: 12}, (_, i) => {
+                const month = i + 1;
+                return `<option value="${month}">${new Date(0, i).toLocaleString('ar-EG', { month: 'long' })}</option>`;
+            }).join('');
+
             container.innerHTML = `
                 <div id="reports-page" class="page">
-                    <h2 class="text-2xl sm:text-3xl font-bold mb-6">لوحة المتابعة المالية</h2>
+                    <h2 class="text-2xl sm:text-3xl font-bold mb-6">التقارير المالية</h2>
 
                     <div class="bg-white p-6 rounded-lg shadow-md no-print">
-                        <h3 class="text-xl font-bold mb-4">اختر لعرض سجل المتابعة السنوي</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        <h3 class="text-xl font-bold mb-4">اختر لإنشاء تقرير</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                             <div>
-                                <label for="status-report-group" class="block text-sm font-medium text-gray-700">المجموعة</label>
-                                <select id="status-report-group" class="p-2 border rounded-lg w-full mt-1" required>
+                                <label for="report-group" class="block text-sm font-medium text-gray-700">المجموعة</label>
+                                <select id="report-group" class="p-2 border rounded-lg w-full mt-1" required>
                                     <option value="">-- اختر مجموعة --</option>
                                     ${groupOptions}
                                 </select>
                             </div>
                             <div>
-                                <label for="status-report-year" class="block text-sm font-medium text-gray-700">السنة</label>
-                                <select id="status-report-year" class="p-2 border rounded-lg w-full mt-1">${yearsOptions}</select>
+                                <label for="report-year" class="block text-sm font-medium text-gray-700">السنة</label>
+                                <select id="report-year" class="p-2 border rounded-lg w-full mt-1">${yearsOptions}</select>
                             </div>
-                            <button onclick="handleFinancialStatusReport()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 h-10">عرض لوحة المتابعة</button>
+                             <div>
+                                <label for="report-month" class="block text-sm font-medium text-gray-700">الشهر</label>
+                                <select id="report-month" class="p-2 border rounded-lg w-full mt-1">
+                                    <option value="all">عرض سنوي (لوحة المتابعة)</option>
+                                    ${monthsOptions}
+                                </select>
+                            </div>
+                            <button onclick="handleFinancialReportGeneration()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 h-10">إنشاء التقرير</button>
                         </div>
                     </div>
 
                     <div id="report-results-container" class="mt-8">
-                        <!-- Financial Status Dashboard will be rendered here -->
+                        <!-- Report content will be rendered here -->
                     </div>
                 </div>
             `;
         }
 
-        window.handleFinancialStatusReport = function() {
-            const groupId = document.getElementById('status-report-group').value;
-            const year = parseInt(document.getElementById('status-report-year').value);
+        window.handleFinancialReportGeneration = function() {
+            const month = document.getElementById('report-month').value;
+            if (month === 'all') {
+                generateYearlyStatusReport();
+            } else {
+                generateMonthlyStatusReport();
+            }
+        }
+
+        function generateYearlyStatusReport() {
+            const groupId = document.getElementById('report-group').value;
+            const year = parseInt(document.getElementById('report-year').value);
             const resultsContainer = document.getElementById('report-results-container');
 
             if (!groupId) {
