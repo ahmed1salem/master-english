@@ -2203,11 +2203,8 @@
                 return `<option value="${year}" ${year === currentYear ? 'selected' : ''}>${year}</option>`;
             }).join('');
 
-            let visibleGroups = appData.groups;
-            if (currentUserData.role === 'teacher' && !currentUserData.role === 'admin') {
-                visibleGroups = appData.groups.filter(g => g.teacherId === currentTeacherDoc.id);
-            }
-            const groupOptions = visibleGroups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+            // appData.groups is already correctly scoped for both admins and teachers by setupRealtimeListeners
+            const groupOptions = appData.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
 
             container.innerHTML = `
                 <div id="reports-page" class="page">
@@ -2245,7 +2242,7 @@
         function handleUnpaidStudentsReport() {
             const month = parseInt(document.getElementById('report-month').value);
             const year = parseInt(document.getElementById('report-year').value);
-            const filterGroupId = document.getElementById('report-group').value; // This is the group we are filtering by
+            const filterGroupId = document.getElementById('report-group').value;
             const resultsContainer = document.getElementById('report-results-container');
 
             resultsContainer.innerHTML = '<div class="text-center py-4">جاري إنشاء التقرير...</div>';
@@ -2256,7 +2253,7 @@
             let studentsToCheck = appData.students;
             if (currentUserData.role === 'teacher' && !currentUserData.role === 'admin') {
                 const teacherGroupIds = appData.groups.map(g => g.id);
-                studentsToCheck = appData.students.filter(s => {
+                 studentsToCheck = appData.students.filter(s => {
                     const studentGroupIds = Array.isArray(s.groupIds) ? s.groupIds : (s.groupId ? [s.groupId] : []);
                     return studentGroupIds.some(sgid => teacherGroupIds.includes(sgid));
                 });
