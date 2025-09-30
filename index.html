@@ -588,13 +588,27 @@
                     cleanupListeners(['groups']);
 
                     if (teacherGroupIds.length > 0) {
-                        // Fetch students using array-contains-any for the 'groupIds' field
-                        const studentQuery = query(collection(db, "students"), where("groupIds", "array-contains-any", teacherGroupIds));
-                        const unsubStudents = onSnapshot(studentQuery, (snapshot) => {
-                            appData.students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                            renderCurrentPage();
+                        // Firestore 'array-contains-any' supports up to 10 elements.
+                        // We need to chunk the group IDs and run multiple queries.
+                        const CHUNK_SIZE = 10;
+                        const groupChunks = [];
+                        for (let i = 0; i < teacherGroupIds.length; i += CHUNK_SIZE) {
+                            groupChunks.push(teacherGroupIds.slice(i, i + CHUNK_SIZE));
+                        }
+
+                        let studentResults = {}; // Use an object to store results from different chunks to avoid duplicates
+
+                        groupChunks.forEach(chunk => {
+                            const studentQuery = query(collection(db, "students"), where("groupIds", "array-contains-any", chunk));
+                            const unsub = onSnapshot(studentQuery, (snapshot) => {
+                                snapshot.docs.forEach(doc => {
+                                    studentResults[doc.id] = { id: doc.id, ...doc.data() };
+                                });
+                                appData.students = Object.values(studentResults);
+                                renderCurrentPage();
+                            }, error => console.error("Error fetching student chunk:", error));
+                            unsubscribeListeners.push(unsub);
                         });
-                        unsubscribeListeners.push(unsubStudents);
 
                         // Fetch other data related by a single groupId
                         ['exams', 'attendance', 'payments'].forEach(col => {
@@ -602,7 +616,7 @@
                             const unsub = onSnapshot(dataQuery, (snapshot) => {
                                 appData[col] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                                 renderCurrentPage();
-                            });
+                            }, error => console.error(`Error fetching ${col}:`, error));
                             unsubscribeListeners.push(unsub);
                         });
                     } else {
