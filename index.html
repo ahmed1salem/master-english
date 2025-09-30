@@ -252,7 +252,6 @@
         let currentUser = null;
         let currentUserData = null; // Data from 'users' collection
         let currentTeacherDoc = null; // Data from 'teachers' collection, if user is a teacher
-        let unsubscribeListeners = []; // To detach listeners on logout
         let appData = { // This will hold all the data the user is allowed to see
             students: [],
             teachers: [],
@@ -263,6 +262,33 @@
             scores: []
         };
         let currentPage = 'dashboard';
+
+        // A more robust way to manage Firestore listeners
+        let listeners = {
+            requests: null,
+            teachers: null,
+            allStudents: null,
+            allGroups: null,
+            allPayments: null,
+            allAttendance: null,
+            allGradeItems: null,
+            allScores: null,
+            teacherGroups: null,
+            teacherSubListeners: []
+        };
+
+        function cleanupAllListeners() {
+            for (const key in listeners) {
+                if (Array.isArray(listeners[key])) {
+                    listeners[key].forEach(unsub => unsub());
+                    listeners[key] = [];
+                } else if (listeners[key]) {
+                    listeners[key]();
+                    listeners[key] = null;
+                }
+            }
+        }
+
 
         // --- TRANSLATION DATA & LOGIC ---
         const translations = {
@@ -460,7 +486,7 @@
                 currentUserData = null;
                 currentTeacherDoc = null;
                 showScreen('auth');
-                cleanupListeners();
+                cleanupAllListeners();
             }
             loadingOverlay.classList.add('hidden');
         });
@@ -542,37 +568,35 @@
 
         // --- REAL-TIME DATA LISTENERS ---
         async function setupRealtimeListeners() {
-            cleanupListeners();
+            cleanupAllListeners(); // Start fresh to avoid duplicate listeners
             const isAdmin = currentUserData.role === 'admin';
             const isTeacher = currentUserData.role === 'teacher';
 
             // Admins need teacher data for dropdowns
             if (isAdmin) {
-                const unsubTeachers = onSnapshot(collection(db, "teachers"), (snapshot) => {
+                listeners.teachers = onSnapshot(collection(db, "teachers"), (snapshot) => {
                     appData.teachers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderCurrentPage();
                 });
-                unsubscribeListeners.push(unsubTeachers);
             }
             
             if (isAdmin) {
                 const requestsQuery = query(collection(db, "users"), where("role", "==", "pending"));
-                const unsubRequests = onSnapshot(requestsQuery, (snapshot) => {
+                listeners.requests = onSnapshot(requestsQuery, (snapshot) => {
                     const count = snapshot.size;
                     const badge = document.getElementById('requests-count-badge');
                     badge.textContent = count;
                     badge.style.display = count > 0 ? 'flex' : 'none';
                     if (currentPage === 'requests') renderRequestsPage(snapshot.docs);
                 });
-                unsubscribeListeners.push(unsubRequests);
 
                 // Admin sees all data
                 ['students', 'groups', 'payments', 'attendance', 'gradeItems', 'scores'].forEach(col => {
-                    const unsub = onSnapshot(collection(db, col), (snapshot) => {
+                    const listenerKey = `all${col.charAt(0).toUpperCase() + col.slice(1)}`;
+                    listeners[listenerKey] = onSnapshot(collection(db, col), (snapshot) => {
                         appData[col] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         renderCurrentPage();
                     });
-                    unsubscribeListeners.push(unsub);
                 });
 
             } else if (isTeacher) {
@@ -582,33 +606,40 @@
                 }
                 
                 const groupsQuery = query(collection(db, "groups"), where("teacherId", "==", currentTeacherDoc.id));
-                const unsubGroups = onSnapshot(groupsQuery, (groupSnapshot) => {
+                listeners.teacherGroups = onSnapshot(groupsQuery, (groupSnapshot) => {
                     appData.groups = groupSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     const teacherGroupIds = appData.groups.map(g => g.id);
                     
-                    cleanupListeners(['groups']);
+                    // Cleanup previous sub-listeners before creating new ones
+                    listeners.teacherSubListeners.forEach(unsub => unsub());
+                    listeners.teacherSubListeners = [];
+
+                    // Reset data for collections that depend on groups
+                    ['students', 'gradeItems', 'scores', 'attendance', 'payments'].forEach(col => appData[col] = []);
 
                     if (teacherGroupIds.length > 0) {
-                        // Firestore 'array-contains-any' supports up to 10 elements.
-                        // We need to chunk the group IDs and run multiple queries.
                         const CHUNK_SIZE = 10;
                         const groupChunks = [];
                         for (let i = 0; i < teacherGroupIds.length; i += CHUNK_SIZE) {
                             groupChunks.push(teacherGroupIds.slice(i, i + CHUNK_SIZE));
                         }
 
-                        let studentResults = {}; // Use an object to store results from different chunks to avoid duplicates
-
+                        // Fetch students
+                        let studentResults = {};
                         groupChunks.forEach(chunk => {
                             const studentQuery = query(collection(db, "students"), where("groupIds", "array-contains-any", chunk));
                             const unsub = onSnapshot(studentQuery, (snapshot) => {
-                                snapshot.docs.forEach(doc => {
-                                    studentResults[doc.id] = { id: doc.id, ...doc.data() };
+                                snapshot.docChanges().forEach((change) => {
+                                    if (change.type === "removed") {
+                                        delete studentResults[change.doc.id];
+                                    } else {
+                                        studentResults[change.doc.id] = { id: change.doc.id, ...change.doc.data() };
+                                    }
                                 });
                                 appData.students = Object.values(studentResults);
                                 renderCurrentPage();
                             }, error => console.error("Error fetching student chunk:", error));
-                            unsubscribeListeners.push(unsub);
+                            listeners.teacherSubListeners.push(unsub);
                         });
 
                         // Fetch other data related by a single groupId, chunking the queries
@@ -617,27 +648,25 @@
                             groupChunks.forEach(chunk => {
                                 const dataQuery = query(collection(db, col), where("groupId", "in", chunk));
                                 const unsub = onSnapshot(dataQuery, (snapshot) => {
-                                     snapshot.docs.forEach(doc => {
-                                        itemResults[doc.id] = { id: doc.id, ...doc.data() };
+                                    snapshot.docChanges().forEach((change) => {
+                                        if (change.type === "removed") {
+                                            delete itemResults[change.doc.id];
+                                        } else {
+                                            itemResults[change.doc.id] = { id: change.doc.id, ...change.doc.data() };
+                                        }
                                     });
                                     appData[col] = Object.values(itemResults);
                                     renderCurrentPage();
                                 }, error => console.error(`Error fetching ${col} chunk:`, error));
-                                unsubscribeListeners.push(unsub);
+                                listeners.teacherSubListeners.push(unsub);
                             });
                         });
                     } else {
-                        ['students', 'gradeItems', 'scores', 'attendance', 'payments'].forEach(col => appData[col] = []);
+                        // No groups, just render the empty state
                         renderCurrentPage();
                     }
                 });
-                unsubscribeListeners.push(unsubGroups);
             }
-        }
-
-        function cleanupListeners(exclude = []) {
-            unsubscribeListeners.forEach(unsub => unsub());
-            unsubscribeListeners = [];
         }
 
         function renderCurrentPage() {
@@ -675,11 +704,12 @@
             const container = document.getElementById('page-content');
             const today = new Date().toISOString().slice(0, 10);
             const todayAttendance = appData.attendance.filter(a => a.timestamp?.toDate().toISOString().slice(0, 10) === today).length;
+            const unpaidStudentsCount = getUnpaidStudentsForCurrentMonth().length;
 
             container.innerHTML = `
                 <div id="dashboard-page" class="page">
                     <h2 class="text-2xl sm:text-3xl font-bold mb-6">الرئيسية</h2>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <div class="bg-white p-6 rounded-lg shadow-md">
                             <h3 class="text-lg font-semibold text-gray-600">إجمالي الطلاب</h3>
                             <p class="text-4xl font-bold mt-2">${appData.students.length}</p>
@@ -689,13 +719,107 @@
                             <p class="text-4xl font-bold mt-2">${appData.groups.length}</p>
                         </div>
                         <div class="bg-white p-6 rounded-lg shadow-md">
-                            <h3 class="text-lg font-semibold text-gray-600">إجمالي المدرسين</h3>
-                            <p class="text-4xl font-bold mt-2">${currentUserData.role === 'admin' ? appData.teachers.length : 'N/A'}</p>
-                        </div>
-                        <div class="bg-white p-6 rounded-lg shadow-md">
                             <h3 class="text-lg font-semibold text-gray-600">الحضور اليوم</h3>
                             <p class="text-4xl font-bold mt-2">${todayAttendance}</p>
                         </div>
+                    </div>
+                    <div class="mt-6">
+                         <div class="bg-white p-6 rounded-lg shadow-md cursor-pointer hover:bg-red-50" onclick="showUnpaidReport()">
+                            <h3 class="text-lg font-semibold text-gray-600">طلاب لم يسددوا للشهر الحالي</h3>
+                            <p class="text-4xl font-bold mt-2 text-red-600">${unpaidStudentsCount}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getUnpaidStudentsForCurrentMonth() {
+            const today = new Date();
+            const currentYear = today.getFullYear();
+            const currentMonth = today.getMonth() + 1;
+
+            const unpaidStudents = new Map();
+
+            const pricedGroups = appData.groups.filter(g => g.price && Number(g.price) > 0);
+
+            for (const group of pricedGroups) {
+                const groupPrice = Number(group.price);
+                const studentsInGroup = appData.students.filter(s => (s.groupIds || []).includes(group.id));
+
+                for (const student of studentsInGroup) {
+                    const paymentsForMonth = appData.payments.filter(p =>
+                        p.studentId === student.id &&
+                        p.groupId === group.id &&
+                        p.paymentForYear === currentYear &&
+                        p.paymentForMonth === currentMonth
+                    );
+
+                    const amountPaidForMonth = paymentsForMonth.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+                    if (amountPaidForMonth < groupPrice) {
+                        if (!unpaidStudents.has(student.id)) {
+                            unpaidStudents.set(student.id, { ...student, unpaidGroups: [] });
+                        }
+                        unpaidStudents.get(student.id).unpaidGroups.push(group.name);
+                    }
+                }
+            }
+
+            return Array.from(unpaidStudents.values());
+        }
+
+        window.showUnpaidReport = function() {
+            showPage('reports');
+            setTimeout(() => {
+                generateUnpaidStudentsReportForAllGroups();
+            }, 100);
+        }
+
+        window.generateUnpaidStudentsReportForAllGroups = function() {
+            const resultsContainer = document.getElementById('report-results-container');
+            if (!resultsContainer) {
+                setTimeout(window.generateUnpaidStudentsReportForAllGroups, 50);
+                return;
+            }
+            resultsContainer.innerHTML = '<div class="text-center py-4">جاري إنشاء تقرير الطلاب غير المسددين...</div>';
+
+            const unpaidStudentsData = getUnpaidStudentsForCurrentMonth();
+
+            const today = new Date();
+            const monthName = today.toLocaleString('ar-EG', { month: 'long' });
+            const year = today.getFullYear();
+
+            const bodyRows = unpaidStudentsData.map(student => `
+                <tr class="border-b">
+                    <td class="p-2">${student.studentCode || 'N/A'}</td>
+                    <th class="p-2 text-right">${student.name}</th>
+                    <td class="p-2">${student.phone || 'N/A'}</td>
+                    <td class="p-2 text-red-700">${student.unpaidGroups.join(', ')}</td>
+                </tr>
+            `).join('');
+
+            resultsContainer.innerHTML = `
+                <div class="bg-white p-6 rounded-lg shadow-md printable-area" id="unpaid-report-printable">
+                     <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h3 class="text-xl font-bold">تقرير الطلاب غير المسددين عن شهر: ${monthName} ${year}</h3>
+                        </div>
+                        <button onclick="printReport('unpaid-report-printable', 'تقرير غير المسددين - ${monthName} ${year}')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 no-print"><i class="fas fa-print mr-2"></i> طباعة</button>
+                    </div>
+                    <div class="overflow-x-auto border rounded-lg">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-800 text-white">
+                                <tr>
+                                    <th class="p-2 text-right">الكود</th>
+                                    <th class="p-2 text-right">الاسم</th>
+                                    <th class="p-2 text-right">الهاتف</th>
+                                    <th class="p-2 text-right">المجموعات غير المسددة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${bodyRows.length > 0 ? bodyRows : '<tr><td colspan="4" class="text-center p-4 text-gray-500">كل الطلاب قد سددوا رسوم هذا الشهر.</td></tr>'}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             `;
