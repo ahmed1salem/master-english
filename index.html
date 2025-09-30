@@ -777,7 +777,7 @@
                             <h3 class="text-xl font-bold">تقرير الحالة المالية لـ: ${group.name}</h3>
                             <p class="text-gray-600">عن شهر: ${monthName} ${year}</p>
                         </div>
-                        <button onclick="printReport('monthly-report-printable')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 no-print"><i class="fas fa-print mr-2"></i> طباعة</button>
+                        <button onclick="printReport('monthly-report-printable', `تقرير مالي - ${group.name} - ${monthName} ${year}`)" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 no-print"><i class="fas fa-print mr-2"></i> طباعة</button>
                     </div>
                     <div class="overflow-x-auto border rounded-lg">
                         <table class="min-w-full text-sm">
@@ -876,7 +876,7 @@
                     <div class="flex justify-between items-center mb-6 no-print">
                         <h2 class="text-2xl sm:text-3xl font-bold">إدارة الطلاب</h2>
                         <div>
-                            <button onclick="printReport('students-page')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"><i class="fas fa-print mr-2"></i> طباعة</button>
+                            <button onclick="printReport('students-page', 'قائمة الطلاب')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"><i class="fas fa-print mr-2"></i> طباعة</button>
                             <button onclick="openStudentModal()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"><i class="fas fa-plus mr-2"></i> إضافة طالب جديد</button>
                         </div>
                     </div>
@@ -1350,7 +1350,7 @@
                  <div id="payments-log-page" class="page">
                     <div class="flex justify-between items-center mb-6 no-print">
                         <h2 class="text-2xl sm:text-3xl font-bold">سجل المدفوعات</h2>
-                        <button onclick="printReport('payments-log-page')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"><i class="fas fa-print mr-2"></i> طباعة السجل</button>
+                        <button onclick="printReport('payments-log-page', 'سجل المدفوعات')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"><i class="fas fa-print mr-2"></i> طباعة السجل</button>
                     </div>
 
                     <!-- Filters Bar -->
@@ -2342,7 +2342,7 @@
                 </div>
                 <div class="flex justify-end space-x-4 space-x-reverse mt-6 no-print">
                     <button type="button" onclick="closeModal('student-report-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إغلاق</button>
-                    <button type="button" onclick="printReport('student-report-content')" class="bg-blue-500 text-white px-6 py-2 rounded-lg">طباعة التقرير</button>
+                    <button type="button" onclick="printReport('student-report-content', `تقرير الطالب - ${student.name}`)" class="bg-blue-500 text-white px-6 py-2 rounded-lg">طباعة التقرير</button>
                 </div>
             `;
 
@@ -2352,14 +2352,13 @@
 
 
         // --- Generic Functions ---
-        window.printReport = function(containerId) {
+        window.printReport = function(containerId, reportTitle = "تقرير") {
             const container = document.getElementById(containerId);
             if (!container) {
                 console.error("Print container not found:", containerId);
                 return;
             }
 
-            // The element to print is either the container itself or a child with the 'printable-area' class
             const elementToPrint = container.classList.contains('printable-area')
                 ? container
                 : container.querySelector('.printable-area');
@@ -2369,7 +2368,9 @@
                 return;
             }
 
-            // Find all other elements with 'printable-area' and temporarily remove the class
+            const originalTitle = document.title;
+            document.title = reportTitle;
+
             const otherPrintableAreas = document.querySelectorAll('.printable-area');
             const areasToRestore = [];
             otherPrintableAreas.forEach(area => {
@@ -2381,7 +2382,8 @@
 
             window.print();
 
-            // Restore the classes. The print dialog is modal, so this runs after it's closed.
+            document.title = originalTitle;
+
             areasToRestore.forEach(area => {
                 area.classList.add('printable-area');
             });
@@ -2449,7 +2451,7 @@
                 </div>
                 <div class="flex justify-end space-x-4 space-x-reverse mt-6 no-print">
                     <button type="button" onclick="closeModal('invoice-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إغلاق</button>
-                    <button type="button" onclick="printReport('invoice-content')" class="bg-blue-500 text-white px-6 py-2 rounded-lg">طباعة</button>
+                    <button type="button" onclick="printReport('invoice-content', `إيصال - ${student?.name || 'طالب'} - ${payment.id.slice(0, 6)}`)" class="bg-blue-500 text-white px-6 py-2 rounded-lg">طباعة</button>
                 </div>
             `;
             renderModal('invoice-modal', modalContent, 'max-w-3xl');
@@ -2609,7 +2611,7 @@
                             <h3 class="text-xl font-bold">لوحة المتابعة المالية لـ: ${group.name} - ${year}</h3>
                             <p class="text-gray-600">سعر المجموعة الشهري: ${groupPrice} جنيه</p>
                         </div>
-                        <button onclick="printReport('financial-status-printable')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 no-print"><i class="fas fa-print mr-2"></i> طباعة</button>
+                        <button onclick="printReport('financial-status-printable', `متابعة مالية - ${group.name} - ${year}`)" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 no-print"><i class="fas fa-print mr-2"></i> طباعة</button>
                     </div>
                     <div class="overflow-x-auto border rounded-lg">
                         <table class="min-w-full text-sm">
