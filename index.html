@@ -44,6 +44,14 @@
             height: 50px;
             animation: spin 1s linear infinite;
         }
+        .button-loader {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #ffffff;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 0.8s linear infinite;
+        }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -457,38 +465,44 @@
         // --- AUTHENTICATION & SESSION MANAGEMENT ---
         onAuthStateChanged(auth, async (user) => {
             const loadingOverlay = document.getElementById('loading-overlay');
-            if (user) {
-                currentUser = user;
-                const userDocRef = doc(db, "users", user.uid);
-                const userDocSnap = await getDoc(userDocRef);
+            try {
+                if (user) {
+                    currentUser = user;
+                    const userDocRef = doc(db, "users", user.uid);
+                    const userDocSnap = await getDoc(userDocRef);
 
-                if (userDocSnap.exists()) {
-                    currentUserData = userDocSnap.data();
-                    if (currentUserData.role === 'pending') {
-                        showScreen('pending-approval');
-                    } else {
-                        if (currentUserData.role === 'teacher') {
-                            const teacherQuery = query(collection(db, "teachers"), where("userId", "==", user.uid));
-                            const teacherSnapshot = await getDocs(teacherQuery);
-                            if (!teacherSnapshot.empty) {
-                                currentTeacherDoc = { id: teacherSnapshot.docs[0].id, ...teacherSnapshot.docs[0].data() };
+                    if (userDocSnap.exists()) {
+                        currentUserData = userDocSnap.data();
+                        if (currentUserData.role === 'pending') {
+                            showScreen('pending-approval');
+                        } else {
+                            if (currentUserData.role === 'teacher') {
+                                const teacherQuery = query(collection(db, "teachers"), where("userId", "==", user.uid));
+                                const teacherSnapshot = await getDocs(teacherQuery);
+                                if (!teacherSnapshot.empty) {
+                                    currentTeacherDoc = { id: teacherSnapshot.docs[0].id, ...teacherSnapshot.docs[0].data() };
+                                }
                             }
+                            initializeAppUI();
+                            showScreen('app');
                         }
-                        initializeAppUI();
-                        showScreen('app');
+                    } else {
+                        console.error("User document not found in Firestore! Forcing logout.");
+                        await handleLogout();
                     }
                 } else {
-                    console.error("User document not found in Firestore!");
-                    handleLogout();
+                    currentUser = null;
+                    currentUserData = null;
+                    currentTeacherDoc = null;
+                    showScreen('auth');
+                    cleanupAllListeners();
                 }
-            } else {
-                currentUser = null;
-                currentUserData = null;
-                currentTeacherDoc = null;
-                showScreen('auth');
-                cleanupAllListeners();
+            } catch (error) {
+                console.error("Error during auth state change, forcing logout.", error);
+                await handleLogout();
+            } finally {
+                loadingOverlay.classList.add('hidden');
             }
-            loadingOverlay.classList.add('hidden');
         });
 
         async function handleSignup(e) {
@@ -497,7 +511,12 @@
             const email = document.getElementById('signup-email').value;
             const password = document.getElementById('signup-password').value;
             const errorEl = document.getElementById('signup-error');
+            const signupButton = e.target.querySelector('button[type="submit"]');
             errorEl.textContent = '';
+
+            // Disable button and show loader
+            signupButton.disabled = true;
+            signupButton.innerHTML = '<div class="button-loader mx-auto"></div>';
 
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -510,9 +529,13 @@
                     role: 'pending', 
                     createdAt: serverTimestamp()
                 });
+                // On successful signup, onAuthStateChanged will handle the UI change.
             } catch (error) {
                 console.error("Signup error:", error);
                 errorEl.textContent = "فشل إنشاء الحساب. " + error.message;
+                // Restore button only on failure
+                signupButton.disabled = false;
+                signupButton.innerHTML = translations.ar.create_account;
             }
         }
 
@@ -521,13 +544,23 @@
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
             const errorEl = document.getElementById('login-error');
+            const loginButton = e.target.querySelector('button[type="submit"]');
             errorEl.textContent = '';
             
+            // Disable button and show loader
+            loginButton.disabled = true;
+            loginButton.innerHTML = '<div class="button-loader mx-auto"></div>';
+
             try {
                 await signInWithEmailAndPassword(auth, email, password);
+                // On successful login, onAuthStateChanged will handle the UI change.
+                // The button doesn't need to be restored here because the view will change.
             } catch (error) {
                 console.error("Login error:", error);
                 errorEl.textContent = "البريد الإلكتروني أو كلمة المرور غير صحيحة.";
+                // Restore button only on failure
+                loginButton.disabled = false;
+                loginButton.innerHTML = translations.ar.login;
             }
         }
         
