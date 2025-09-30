@@ -2172,7 +2172,7 @@
                         </tfoot>
                     </table>
                      <div class="text-left mb-8">
-                        <p><strong>فقط:</strong> ${TAFQIT.inWords(amount)} جنيه مصري لا غير.</p>
+                        <p><strong>فقط:</strong> ${typeof TAFQIT !== 'undefined' ? TAFQIT.inWords(amount) : amount} جنيه مصري لا غير.</p>
                     </div>
                     <div class="flex justify-between items-center text-sm text-gray-600">
                         <p>المستلم: ${currentUserData.name}</p>
