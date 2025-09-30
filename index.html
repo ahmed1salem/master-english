@@ -1621,6 +1621,28 @@
         }
         
         // --- Student CRUD ---
+        window.generateAndSetUniqueStudentCode = function() {
+            const studentCodeInput = document.getElementById('student-code');
+            if (!studentCodeInput) return;
+
+            const existingCodes = new Set(appData.students.map(s => s.studentCode));
+            let newCode;
+            let attempts = 0;
+
+            do {
+                // Generate a 6-digit random number as a string
+                newCode = String(Math.floor(100000 + Math.random() * 900000));
+                attempts++;
+                // Failsafe to prevent infinite loops in a very unlikely scenario
+                if (attempts > 1000) {
+                    alert("فشل إنشاء كود فريد تلقائيًا. يرجى إدخال كود يدويًا.");
+                    return;
+                }
+            } while (existingCodes.has(newCode));
+
+            studentCodeInput.value = newCode;
+        }
+
         window.openStudentModal = function(studentId = null) {
             const student = studentId ? appData.students.find(s => s.id === studentId) : null;
             const title = student ? 'تعديل بيانات طالب' : 'إضافة طالب جديد';
@@ -1640,7 +1662,12 @@
                 <form id="student-form">
                     <input type="hidden" id="student-id-hidden" value="${student?.id || ''}">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input type="text" id="student-code" placeholder="كود الطالب" class="p-2 border rounded-lg w-full" value="${student?.studentCode || ''}" required>
+                        <div class="flex items-center">
+                            <input type="text" id="student-code" placeholder="كود الطالب" class="p-2 border rounded-s-lg w-full" value="${student?.studentCode || ''}" required>
+                            <button type="button" onclick="generateAndSetUniqueStudentCode()" class="p-2 border-t border-b border-s-0 rounded-e-lg bg-gray-200 hover:bg-gray-300" title="إنشاء كود تلقائي فريد">
+                                <i class="fas fa-cogs text-gray-600"></i>
+                            </button>
+                        </div>
                         <input type="text" id="student-name" placeholder="اسم الطالب" class="p-2 border rounded-lg w-full" value="${student?.name || ''}" required>
                         <input type="text" id="student-grade" placeholder="المرحلة الدراسية" class="p-2 border rounded-lg w-full" value="${student?.grade || ''}">
                         <input type="text" id="student-phone" placeholder="هاتف الطالب" class="p-2 border rounded-lg w-full" value="${student?.phone || ''}">
