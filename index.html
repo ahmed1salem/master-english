@@ -11,6 +11,9 @@
     <!-- Tafqit Library for converting numbers to text -->
     <script src="https://cdn.jsdelivr.net/npm/tafqit@2.2.2/dist/tafqit.umd.js"></script>
 
+    <!-- SheetJS (XLSX) Library for Excel file processing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -1033,9 +1036,10 @@
                 <div id="students-page" class="page">
                     <div class="flex justify-between items-center mb-6 no-print">
                         <h2 class="text-2xl sm:text-3xl font-bold">إدارة الطلاب</h2>
-                        <div>
+                        <div class="flex space-x-2 space-x-reverse">
+                            <button onclick="openBatchStudentModal()" class="bg-teal-500 text-white px-4 py-2 rounded-lg hover:bg-teal-600"><i class="fas fa-users mr-2"></i> إضافة دفعة واحدة</button>
+                            <button onclick="openStudentModal()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"><i class="fas fa-plus mr-2"></i> إضافة طالب</button>
                             <button onclick="printReport('students-page', 'قائمة الطلاب')" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"><i class="fas fa-print mr-2"></i> طباعة</button>
-                            <button onclick="openStudentModal()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"><i class="fas fa-plus mr-2"></i> إضافة طالب جديد</button>
                         </div>
                     </div>
 
@@ -1058,6 +1062,7 @@
                                     <th class="py-3 px-4 text-right">الاسم</th>
                                     <th class="py-3 px-4 text-right">المرحلة</th>
                                     <th class="py-3 px-4 text-right">الهاتف</th>
+                                    <th class="py-3 px-4 text-right">هاتف ولي الأمر</th>
                                     <th class="py-3 px-4 text-right">المجموعات</th>
                                     <th class="py-3 px-4 text-right no-print">إجراءات</th>
                                 </tr>
@@ -1107,7 +1112,8 @@
                             <td class="py-2 px-4">${student.studentCode || 'N/A'}</td>
                             <td class="py-2 px-4">${student.name}</td>
                             <td class="py-2 px-4">${student.grade}</td>
-                            <td class="py-2 px-4">${student.phone}</td>
+                            <td class="py-2 px-4">${student.phone || 'N/A'}</td>
+                            <td class="py-2 px-4">${student.parentPhone || 'N/A'}</td>
                             <td class="py-2 px-4">${groupNames}</td>
                             <td class="py-2 px-4 space-x-2 space-x-reverse no-print">
                                 <button onclick="generateStudentReport('${student.id}')" class="text-green-500 hover:text-green-700" title="تقرير شامل"><i class="fas fa-address-card"></i></button>
@@ -1903,6 +1909,289 @@
                     showAlertModal("فشل حذف الطالب.", 'error');
                 }
             });
+        }
+
+        // --- Batch Student Upload ---
+        window.openBatchStudentModal = function() {
+            const modalId = 'batch-student-modal';
+            const groupOptions = appData.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+
+            if (appData.groups.length === 0) {
+                showAlertModal("يرجى إضافة مجموعة واحدة على الأقل قبل إضافة الطلاب.", 'error');
+                return;
+            }
+
+            const modalContent = `
+                <h3 class="text-2xl font-bold mb-4">إضافة طلاب دفعة واحدة</h3>
+
+                <div class="mb-4">
+                    <label for="batch-student-group" class="block text-sm font-medium text-gray-700 mb-1">اختر المجموعة لتسجيل الطلاب بها:</label>
+                    <select id="batch-student-group" class="p-2 border rounded-lg w-full" required>
+                        ${groupOptions}
+                    </select>
+                </div>
+
+                <!-- Tabs -->
+                <div class="mb-4 border-b border-gray-200">
+                    <nav class="flex -mb-px" aria-label="Tabs">
+                        <a href="#" id="batch-upload-tab" class="w-1/2 py-3 px-1 text-center border-b-2 font-medium text-sm text-indigo-600 border-indigo-500">
+                            <i class="fas fa-file-excel mr-2"></i>رفع ملف Excel
+                        </a>
+                        <a href="#" id="batch-manual-tab" class="w-1/2 py-3 px-1 text-center border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300">
+                            <i class="fas fa-keyboard mr-2"></i>إدخال يدوي
+                        </a>
+                    </nav>
+                </div>
+
+                <!-- Tab Content -->
+                <div>
+                    <!-- Excel Upload Form -->
+                    <div id="batch-upload-container">
+                        <p class="text-sm text-gray-600 mb-2">
+                            يجب أن يحتوي الملف على الأعمدة بالترتيب التالي: <strong>الاسم</strong>، <strong>المرحلة الدراسية</strong>، <strong>رقم الهاتف</strong>، <strong>رقم ولي الأمر</strong>.
+                        </p>
+                        <input type="file" id="batch-file-input" accept=".xlsx, .xls" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                    </div>
+
+                    <!-- Manual Input Form -->
+                    <div id="batch-manual-container" class="hidden">
+                        <p class="text-sm text-gray-600 mb-2">
+                            أدخل بيانات كل طالب في سطر جديد. افصل بين البيانات بـ <strong>فاصلة (,)</strong>.
+                            <br>
+                            الترتيب: <strong>الاسم، المرحلة، الهاتف، هاتف ولي الأمر</strong>
+                        </p>
+                        <textarea id="batch-text-input" rows="8" class="p-2 border rounded-lg w-full" placeholder="مثال:\nأحمد علي, الصف الأول الثانوي, 01012345678, 01298765432\nفاطمة محمد, الصف الثاني الثانوي, 01112345678, "></textarea>
+                    </div>
+                </div>
+
+                <!-- Preview Area -->
+                <div id="batch-preview-container" class="mt-4 hidden">
+                    <h4 class="text-lg font-semibold mb-2">معاينة البيانات (<span id="batch-student-count">0</span> طالب)</h4>
+                    <div id="batch-preview-table-wrapper" class="max-h-60 overflow-y-auto border rounded-lg">
+                        <table class="min-w-full text-xs">
+                            <thead class="bg-gray-100 sticky top-0">
+                                <tr>
+                                    <th class="p-2 text-right">الاسم</th>
+                                    <th class="p-2 text-right">المرحلة</th>
+                                    <th class="p-2 text-right">الهاتف</th>
+                                    <th class="p-2 text-right">هاتف ولي الأمر</th>
+                                </tr>
+                            </thead>
+                            <tbody id="batch-preview-tbody"></tbody>
+                        </table>
+                    </div>
+                    <p id="batch-processing-error" class="text-red-500 text-xs mt-2 h-4"></p>
+                </div>
+
+                <div class="flex justify-end space-x-4 space-x-reverse mt-6">
+                    <button type="button" onclick="closeModal('${modalId}')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إلغاء</button>
+                    <button type="button" id="batch-process-btn" class="bg-indigo-500 text-white px-6 py-2 rounded-lg">معالجة البيانات</button>
+                    <button type="button" id="batch-save-btn" class="bg-green-600 text-white px-6 py-2 rounded-lg hidden">
+                        <span class="btn-text">حفظ الطلاب</span>
+                        <span class="btn-loader hidden"><div class="button-loader mx-auto"></div></span>
+                    </button>
+                </div>
+            `;
+            renderModal(modalId, modalContent, 'max-w-4xl');
+
+            // State for the modal
+            let parsedStudents = [];
+
+            // Tab switching logic
+            const uploadTab = document.getElementById('batch-upload-tab');
+            const manualTab = document.getElementById('batch-manual-tab');
+            const uploadContainer = document.getElementById('batch-upload-container');
+            const manualContainer = document.getElementById('batch-manual-container');
+
+            function switchBatchTab(tab) {
+                if (tab === 'upload') {
+                    uploadTab.classList.add('text-indigo-600', 'border-indigo-500');
+                    uploadTab.classList.remove('text-gray-500', 'border-transparent');
+                    manualTab.classList.remove('text-indigo-600', 'border-indigo-500');
+                    manualTab.classList.add('text-gray-500', 'border-transparent');
+                    uploadContainer.classList.remove('hidden');
+                    manualContainer.classList.add('hidden');
+                } else {
+                    manualTab.classList.add('text-indigo-600', 'border-indigo-500');
+                    manualTab.classList.remove('text-gray-500', 'border-transparent');
+                    uploadTab.classList.remove('text-indigo-600', 'border-indigo-500');
+                    uploadTab.classList.add('text-gray-500', 'border-transparent');
+                    manualContainer.classList.remove('hidden');
+                    uploadContainer.classList.add('hidden');
+                }
+                // Clear preview on tab switch
+                document.getElementById('batch-preview-container').classList.add('hidden');
+                document.getElementById('batch-save-btn').classList.add('hidden');
+                parsedStudents = [];
+            }
+
+            uploadTab.addEventListener('click', (e) => { e.preventDefault(); switchBatchTab('upload'); });
+            manualTab.addEventListener('click', (e) => { e.preventDefault(); switchBatchTab('manual'); });
+
+            // Processing logic
+            document.getElementById('batch-process-btn').addEventListener('click', handleProcessData);
+
+            function handleProcessData() {
+                const isUpload = !uploadContainer.classList.contains('hidden');
+                if (isUpload) {
+                    processExcelFile();
+                } else {
+                    processManualText();
+                }
+            }
+
+            function processExcelFile() {
+                const fileInput = document.getElementById('batch-file-input');
+                const file = fileInput.files[0];
+                if (!file) {
+                    showAlertModal("يرجى اختيار ملف Excel أولاً.", 'error');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, {type: 'array'});
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1, defval: ""});
+
+                        // Assuming first row is header and skipping it
+                        parsedStudents = jsonData.slice(1).map(row => ({
+                            name: row[0] || '',
+                            grade: row[1] || '',
+                            phone: String(row[2] || ''),
+                            parentPhone: String(row[3] || '')
+                        })).filter(s => s.name); // Filter out empty rows
+
+                        renderPreview();
+                    } catch (err) {
+                        console.error("Error processing Excel file:", err);
+                        document.getElementById('batch-processing-error').textContent = "حدث خطأ أثناء قراءة الملف. تأكد من أنه ملف Excel صالح.";
+                    }
+                };
+                reader.onerror = function() {
+                    document.getElementById('batch-processing-error').textContent = "فشل قراءة الملف.";
+                };
+                reader.readAsArrayBuffer(file);
+            }
+
+            function processManualText() {
+                const text = document.getElementById('batch-text-input').value.trim();
+                if (!text) {
+                    showAlertModal("يرجى إدخال بيانات الطلاب أولاً.", 'error');
+                    return;
+                }
+
+                const rows = text.split('\n');
+                parsedStudents = rows.map(row => {
+                    const cols = row.split(',').map(s => s.trim());
+                    return {
+                        name: cols[0] || '',
+                        grade: cols[1] || '',
+                        phone: cols[2] || '',
+                        parentPhone: cols[3] || ''
+                    };
+                }).filter(s => s.name); // Filter out empty rows
+
+                renderPreview();
+            }
+
+            function renderPreview() {
+                const previewContainer = document.getElementById('batch-preview-container');
+                const previewTbody = document.getElementById('batch-preview-tbody');
+                const countSpan = document.getElementById('batch-student-count');
+                const saveBtn = document.getElementById('batch-save-btn');
+                const errorEl = document.getElementById('batch-processing-error');
+
+                errorEl.textContent = '';
+                previewTbody.innerHTML = '';
+
+                if (parsedStudents.length === 0) {
+                    errorEl.textContent = "لم يتم العثور على بيانات طلاب صالحة.";
+                    previewContainer.classList.add('hidden');
+                    saveBtn.classList.add('hidden');
+                    return;
+                }
+
+                let tableRows = '';
+                parsedStudents.forEach(student => {
+                    tableRows += `
+                        <tr class="border-b">
+                            <td class="p-2">${student.name}</td>
+                            <td class="p-2">${student.grade}</td>
+                            <td class="p-2">${student.phone}</td>
+                            <td class="p-2">${student.parentPhone}</td>
+                        </tr>
+                    `;
+                });
+
+                previewTbody.innerHTML = tableRows;
+                countSpan.textContent = parsedStudents.length;
+                previewContainer.classList.remove('hidden');
+                saveBtn.classList.remove('hidden');
+            }
+
+            // Save button event listener
+            document.getElementById('batch-save-btn').addEventListener('click', () => handleBatchStudentSubmit(parsedStudents));
+        }
+
+        async function handleBatchStudentSubmit(studentsToSave) {
+            const groupId = document.getElementById('batch-student-group').value;
+            if (!groupId) {
+                showAlertModal("يجب اختيار مجموعة أولاً.", 'error');
+                return;
+            }
+            if (!studentsToSave || studentsToSave.length === 0) {
+                showAlertModal("لا يوجد طلاب لحفظهم.", 'error');
+                return;
+            }
+
+            const saveBtn = document.getElementById('batch-save-btn');
+            const btnText = saveBtn.querySelector('.btn-text');
+            const btnLoader = saveBtn.querySelector('.btn-loader');
+
+            saveBtn.disabled = true;
+            btnText.classList.add('hidden');
+            btnLoader.classList.remove('hidden');
+
+            try {
+                const existingCodes = new Set(appData.students.map(s => s.studentCode));
+                const batch = writeBatch(db);
+
+                studentsToSave.forEach(student => {
+                    let newCode;
+                    do {
+                        newCode = String(Math.floor(100000 + Math.random() * 900000));
+                    } while (existingCodes.has(newCode));
+                    existingCodes.add(newCode); // Add to set to prevent duplicates within the same batch
+
+                    const studentData = {
+                        name: student.name,
+                        grade: student.grade,
+                        phone: student.phone,
+                        parentPhone: student.parentPhone,
+                        studentCode: newCode,
+                        groupIds: [groupId]
+                    };
+
+                    const studentRef = doc(collection(db, "students"));
+                    batch.set(studentRef, studentData);
+                });
+
+                await batch.commit();
+                showAlertModal(`تم إضافة ${studentsToSave.length} طالب بنجاح!`, 'success');
+                closeModal('batch-student-modal');
+
+            } catch (error) {
+                console.error("Error saving batch students:", error);
+                showAlertModal("حدث خطأ أثناء حفظ الطلاب.", 'error');
+            } finally {
+                saveBtn.disabled = false;
+                btnText.classList.remove('hidden');
+                btnLoader.classList.add('hidden');
+            }
         }
 
         // --- Teacher CRUD ---
