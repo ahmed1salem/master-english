@@ -187,7 +187,7 @@
                 
                 <!-- Teacher & Admin Links -->
                 <li class="admin-only teacher-only"><a href="#" onclick="showPage('groups')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-layer-group fa-fw mx-2"></i> <span data-translate="nav_groups">المجموعات</span></a></li>
-                <li class="admin-only teacher-only"><a href="#" onclick="showPage('exams')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-pen-alt fa-fw mx-2"></i> <span data-translate="nav_exams">الامتحانات</span></a></li>
+                <li class="admin-only teacher-only"><a href="#" onclick="showPage('grades')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-book-reader fa-fw mx-2"></i> <span data-translate="nav_grades">الدرجات</span></a></li>
             </ul>
              
             <div>
@@ -259,7 +259,8 @@
             groups: [],
             payments: [],
             attendance: [],
-            exams: []
+            gradeItems: [],
+            scores: []
         };
         let currentPage = 'dashboard';
 
@@ -287,7 +288,7 @@
                 nav_reports: "التقارير المالية",
                 nav_payments_log: "سجل المدفوعات",
                 nav_groups: "المجموعات",
-                nav_exams: "الامتحانات",
+                nav_grades: "الدرجات",
                 // Finance Page
                 finance_title: "الشؤون المالية",
                 add_payment: "إضافة دفعة",
@@ -566,7 +567,7 @@
                 unsubscribeListeners.push(unsubRequests);
 
                 // Admin sees all data
-                ['students', 'groups', 'payments', 'attendance', 'exams'].forEach(col => {
+                ['students', 'groups', 'payments', 'attendance', 'gradeItems', 'scores'].forEach(col => {
                     const unsub = onSnapshot(collection(db, col), (snapshot) => {
                         appData[col] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         renderCurrentPage();
@@ -611,7 +612,7 @@
                         });
 
                         // Fetch other data related by a single groupId, chunking the queries
-                        ['exams', 'attendance', 'payments'].forEach(col => {
+                        ['gradeItems', 'scores', 'attendance', 'payments'].forEach(col => {
                             let itemResults = {};
                             groupChunks.forEach(chunk => {
                                 const dataQuery = query(collection(db, col), where("groupId", "in", chunk));
@@ -659,7 +660,7 @@
                 case 'teachers': renderTeachersPageContent(); break;
                 case 'groups': renderGroupsPageContent(); break;
                 case 'attendance': renderAttendancePage(); break;
-                case 'exams': renderExamsPage(); break;
+                case 'grades': renderGradesPage(); break; // New page for Gradebook
                 case 'finance': renderFinancePage(); break;
                 case 'reports': renderReportsPage(); break;
                 case 'payments': renderPaymentsLogPage(); break;
@@ -699,7 +700,72 @@
                 </div>
             `;
         }
-        
+
+        window.renderGradebookForGroup = function(groupId) {
+            const container = document.getElementById('gradebook-container');
+            const group = appData.groups.find(g => g.id === groupId);
+            if (!group) return;
+
+            const studentsInGroup = appData.students.filter(s => (s.groupIds || [s.groupId]).includes(groupId));
+            const gradeItems = appData.gradeItems.filter(item => item.groupId === groupId).sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
+
+            // Header row with grade items
+            const headerCells = gradeItems.map(item => `
+                <th class="p-2 border-s min-w-[150px] sticky top-0 bg-gray-800">
+                    <div class="flex justify-between items-center">
+                        <span>${item.name} (${item.maxScore})</span>
+                        <button onclick="deleteGradeItem('${item.id}')" class="text-red-400 hover:text-red-600 ms-2"><i class="fas fa-trash-alt fa-xs"></i></button>
+                    </div>
+                </th>
+            `).join('');
+
+            // Body rows with students and their scores
+            const bodyRows = studentsInGroup.map(student => {
+                const scoreCells = gradeItems.map(item => {
+                    const scoreDoc = appData.scores.find(s => s.studentId === student.id && s.gradeItemId === item.id);
+                    const score = scoreDoc ? scoreDoc.score : '';
+                    return `
+                        <td class="p-1 border-s">
+                            <input type="number"
+                                   class="w-full p-2 text-center bg-gray-50 focus:bg-white border-transparent focus:border-blue-500 rounded-lg"
+                                   value="${score}"
+                                   onchange="handleScoreChange(event, '${student.id}', '${item.id}', ${item.maxScore})">
+                        </td>
+                    `;
+                }).join('');
+                return `
+                    <tr class="border-b">
+                        <th class="p-2 text-right sticky left-0 bg-white min-w-[200px]">${student.name}</th>
+                        ${scoreCells}
+                    </tr>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold">سجل درجات: ${group.name}</h3>
+                        <button onclick="openGradeItemModal('${groupId}')" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 text-sm font-semibold">
+                            <i class="fas fa-plus mr-1"></i>إضافة بند تقييم
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto border rounded-lg">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-800 text-white">
+                                <tr>
+                                    <th class="p-2 text-right sticky left-0 bg-gray-800 z-10 min-w-[200px]">الطالب</th>
+                                    ${headerCells}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${bodyRows.length > 0 ? bodyRows : '<tr><td colspan="99" class="text-center p-4 text-gray-500">لا يوجد طلاب في هذه المجموعة.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
         function renderStudentsPageContent() {
             const container = document.getElementById('page-content');
             const groupOptions = appData.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
@@ -914,202 +980,6 @@
             `;
         }
 
-        function renderExamsPage() {
-            const container = document.getElementById('page-content');
-            let tableRows = '';
-            appData.exams.forEach(exam => {
-                const group = appData.groups.find(g => g.id === exam.groupId);
-                const maxScore = Number(exam.maxScore) || 0;
-                tableRows += `
-                    <tr class="border-b">
-                        <td class="py-2 px-4">${exam.name}</td>
-                        <td class="py-2 px-4">${group?.name || 'N/A'}</td>
-                        <td class="py-2 px-4">${exam.date}</td>
-                        <td class="py-2 px-4">${maxScore}</td>
-                        <td class="py-2 px-4 space-x-2 space-x-reverse">
-                            <button onclick="openExamResultsModal('${exam.id}')" class="text-green-500 hover:text-green-700" title="عرض النتائج"><i class="fas fa-poll"></i></button>
-                            <button onclick="openExamModal('${exam.id}')" class="text-blue-500 hover:text-blue-700" title="تعديل"><i class="fas fa-edit"></i></button>
-                            <button onclick="deleteExam('${exam.id}')" class="text-red-500 hover:text-red-700" title="حذف"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `;
-            });
-
-            container.innerHTML = `
-                <div id="exams-page" class="page">
-                    <h2 class="text-2xl sm:text-3xl font-bold mb-6">إدارة الامتحانات</h2>
-                    <button onclick="openExamModal()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 mb-4"><i class="fas fa-plus mr-2"></i> إضافة امتحان جديد</button>
-                    <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-                        <table class="min-w-full bg-white">
-                            <thead class="bg-gray-800 text-white">
-                                <tr>
-                                    <th class="py-3 px-4 text-right">اسم الامتحان</th>
-                                    <th class="py-3 px-4 text-right">المجموعة</th>
-                                    <th class="py-3 px-4 text-right">التاريخ</th>
-                                    <th class="py-3 px-4 text-right">الدرجة القصوى</th>
-                                    <th class="py-3 px-4 text-right">إجراءات</th>
-                                </tr>
-                            </thead>
-                            <tbody>${tableRows}</tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-        }
-
-        // --- Exam CRUD ---
-        window.openExamModal = function(examId = null) {
-            const exam = examId ? appData.exams.find(e => e.id === examId) : null;
-            const title = exam ? 'تعديل امتحان' : 'إضافة امتحان جديد';
-
-            let groupsOptions = appData.groups.map(g => `<option value="${g.id}" ${exam?.groupId === g.id ? 'selected' : ''}>${g.name}</option>`).join('');
-
-            const modalContent = `
-                <h3 class="text-2xl font-bold mb-6">${title}</h3>
-                <form id="exam-form">
-                    <input type="hidden" id="exam-id-hidden" value="${exam?.id || ''}">
-                    <div class="space-y-4">
-                        <input type="text" id="exam-name" placeholder="اسم الامتحان" class="p-2 border rounded-lg w-full" value="${exam?.name || ''}" required>
-                        <select id="exam-group" class="p-2 border rounded-lg w-full" required>
-                            <option value="">-- اختر المجموعة --</option>
-                            ${groupsOptions}
-                        </select>
-                        <input type="date" id="exam-date" class="p-2 border rounded-lg w-full" value="${exam?.date || ''}" required>
-                        <input type="number" id="exam-max-score" placeholder="الدرجة القصوى" class="p-2 border rounded-lg w-full" value="${exam?.maxScore || ''}" required>
-                    </div>
-                    <div class="flex justify-end space-x-4 space-x-reverse mt-6">
-                        <button type="button" onclick="closeModal('exam-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إلغاء</button>
-                        <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-lg">حفظ</button>
-                    </div>
-                </form>
-            `;
-            renderModal('exam-modal', modalContent);
-            document.getElementById('exam-form').onsubmit = handleExamFormSubmit;
-        }
-
-        async function handleExamFormSubmit(event) {
-            event.preventDefault();
-            const examId = document.getElementById('exam-id-hidden').value;
-            const maxScoreValue = parseFloat(document.getElementById('exam-max-score').value);
-
-            if (isNaN(maxScoreValue)) {
-                alert("يرجى إدخال درجة قصوى صالحة.");
-                return;
-            }
-
-            const examData = {
-                name: document.getElementById('exam-name').value,
-                groupId: document.getElementById('exam-group').value,
-                date: document.getElementById('exam-date').value,
-                maxScore: maxScoreValue,
-            };
-
-            try {
-                if (examId) {
-                    await updateDoc(doc(db, "exams", examId), examData);
-                    alert('تم تحديث الامتحان بنجاح.');
-                } else {
-                    await addDoc(collection(db, "exams"), examData);
-                    alert('تمت إضافة الامتحان بنجاح.');
-                }
-                closeModal('exam-modal');
-            } catch (error) {
-                console.error("Error saving exam:", error);
-                alert("فشل حفظ الامتحان.");
-            }
-        }
-
-        window.deleteExam = async function(examId) {
-            if (!confirm("هل أنت متأكد من حذف هذا الامتحان؟ سيتم حذف كل النتائج المرتبطة به.")) return;
-            try {
-                // Also delete results subcollection (more complex, requires batch or cloud function for full cleanup)
-                await deleteDoc(doc(db, "exams", examId));
-                alert("تم حذف الامتحان بنجاح.");
-            } catch (error) {
-                console.error("Error deleting exam:", error);
-                alert("فشل حذف الامتحان.");
-            }
-        }
-
-        // --- Exam Results ---
-        window.openExamResultsModal = async function(examId) {
-            const exam = appData.exams.find(e => e.id === examId);
-            if (!exam) return;
-
-            const studentsInGroup = appData.students.filter(s => {
-                const studentGroupIds = Array.isArray(s.groupIds) ? s.groupIds : (s.groupId ? [s.groupId] : []);
-                return studentGroupIds.includes(exam.groupId);
-            });
-
-            // Fetch existing results for this exam
-            const resultsRef = collection(db, `exams/${examId}/results`);
-            const resultsSnapshot = await getDocs(resultsRef);
-            const existingResults = resultsSnapshot.docs.map(d => ({ studentId: d.id, ...d.data() }));
-
-            const maxScore = Number(exam.maxScore) || 0;
-
-            let studentRows = studentsInGroup.map(student => {
-                const result = existingResults.find(r => r.studentId === student.id);
-                return `
-                    <tr class="border-b">
-                        <td class="py-2 px-4">${student.name}</td>
-                        <td class="py-2 px-4">
-                            <input type="number" data-studentid="${student.id}" class="p-1 border rounded-lg w-24" value="${result?.score || ''}" placeholder="--">
-                        </td>
-                         <td class="py-2 px-4">${maxScore}</td>
-                    </tr>
-                `;
-            }).join('');
-
-            const modalContent = `
-                <h3 class="text-2xl font-bold mb-4">نتائج امتحان: ${exam.name}</h3>
-                <p class="mb-6 text-gray-600">المجموعة: ${appData.groups.find(g=>g.id === exam.groupId)?.name || 'N/A'}</p>
-                <form id="exam-results-form">
-                    <div class="max-h-96 overflow-y-auto">
-                        <table class="min-w-full bg-white">
-                            <thead class="bg-gray-200 sticky top-0">
-                                <tr>
-                                    <th class="py-2 px-4 text-right">الطالب</th>
-                                    <th class="py-2 px-4 text-right">الدرجة</th>
-                                    <th class="py-2 px-4 text-right">الدرجة القصوى</th>
-                                </tr>
-                            </thead>
-                            <tbody>${studentRows}</tbody>
-                        </table>
-                    </div>
-                    <div class="flex justify-end space-x-4 space-x-reverse mt-6">
-                        <button type="button" onclick="closeModal('exam-results-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إغلاق</button>
-                        <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-lg">حفظ النتائج</button>
-                    </div>
-                </form>
-            `;
-            renderModal('exam-results-modal', modalContent, 'max-w-3xl');
-            document.getElementById('exam-results-form').onsubmit = (e) => handleExamResultsSubmit(e, examId);
-        }
-
-        async function handleExamResultsSubmit(event, examId) {
-            event.preventDefault();
-            const inputs = event.target.querySelectorAll('input[data-studentid]');
-            const batch = writeBatch(db);
-
-            inputs.forEach(input => {
-                const studentId = input.dataset.studentid;
-                const score = input.value.trim();
-                if (score !== '') {
-                    const resultRef = doc(db, `exams/${examId}/results`, studentId);
-                    batch.set(resultRef, { score: parseFloat(score) });
-                }
-            });
-
-            try {
-                await batch.commit();
-                alert('تم حفظ النتائج بنجاح.');
-                closeModal('exam-results-modal');
-            } catch (error) {
-                console.error("Error saving exam results:", error);
-                alert('فشل حفظ النتائج.');
-            }
-        }
 
         function renderFinancePage() {
             const container = document.getElementById('page-content');
@@ -1878,6 +1748,155 @@
             }
         }
 
+        function renderGradesPage() {
+            const container = document.getElementById('page-content');
+
+            const groupCards = appData.groups.map(g => `
+                <div class="bg-white p-4 rounded-lg shadow-md flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div>
+                        <h3 class="font-bold text-lg text-gray-800">${g.name}</h3>
+                        <p class="text-sm text-gray-500">${g.schedule?.days?.join(', ') || 'ايام غير محددة'} - ${g.schedule?.time || 'وقت غير محدد'}</p>
+                    </div>
+                    <div class="flex">
+                        <button onclick="renderGradebookForGroup('${g.id}')" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 text-sm font-semibold">
+                            <i class="fas fa-book-open mr-1"></i>عرض سجل الدرجات
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = `
+                <div id="grades-page" class="page">
+                    <h2 class="text-2xl sm:text-3xl font-bold mb-6">سجل الدرجات</h2>
+
+                    <div class="space-y-4">
+                        ${groupCards.length > 0 ? groupCards : '<div class="bg-white p-6 rounded-lg shadow-md text-center text-gray-500">لا توجد مجموعات لعرضها.</div>'}
+                    </div>
+
+                    <div id="gradebook-container" class="mt-8">
+                        <!-- Gradebook for the selected group will be loaded here -->
+                    </div>
+                </div>
+            `;
+        }
+
+        window.openGradeItemModal = function(groupId) {
+            const modalContent = `
+                <h3 class="text-2xl font-bold mb-6">إضافة بند تقييم جديد</h3>
+                <form id="grade-item-form">
+                    <input type="hidden" id="grade-item-group-id" value="${groupId}">
+                    <div class="space-y-4">
+                        <input type="text" id="grade-item-name" placeholder="اسم البند (مثال: واجب 1)" class="p-2 border rounded-lg w-full" required>
+                        <input type="number" id="grade-item-max-score" placeholder="الدرجة القصوى" class="p-2 border rounded-lg w-full" required>
+                    </div>
+                    <div class="flex justify-end space-x-4 space-x-reverse mt-6">
+                        <button type="button" onclick="closeModal('grade-item-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إلغاء</button>
+                        <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-lg">حفظ</button>
+                    </div>
+                </form>
+            `;
+            renderModal('grade-item-modal', modalContent);
+            document.getElementById('grade-item-form').onsubmit = handleGradeItemFormSubmit;
+        }
+
+        async function handleGradeItemFormSubmit(event) {
+            event.preventDefault();
+            const groupId = document.getElementById('grade-item-group-id').value;
+            const name = document.getElementById('grade-item-name').value;
+            const maxScore = parseFloat(document.getElementById('grade-item-max-score').value);
+
+            if (!name || isNaN(maxScore) || maxScore <= 0) {
+                alert("يرجى إدخال اسم ودرجة قصوى صالحة.");
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, "gradeItems"), {
+                    groupId,
+                    name,
+                    maxScore,
+                    createdAt: serverTimestamp()
+                });
+                alert('تمت إضافة بند التقييم بنجاح.');
+                closeModal('grade-item-modal');
+                renderGradebookForGroup(groupId); // Refresh the gradebook view
+            } catch (error) {
+                console.error("Error saving grade item:", error);
+                alert("فشل حفظ بند التقييم.");
+            }
+        }
+
+        window.deleteGradeItem = async function(gradeItemId) {
+            if (!confirm("هل أنت متأكد من حذف بند التقييم هذا؟ سيتم حذف جميع الدرجات المرتبطة به بشكل دائم.")) return;
+
+            try {
+                const batch = writeBatch(db);
+
+                // Delete the grade item itself
+                const itemRef = doc(db, "gradeItems", gradeItemId);
+                batch.delete(itemRef);
+
+                // Find and delete all scores associated with this grade item
+                const scoresQuery = query(collection(db, "scores"), where("gradeItemId", "==", gradeItemId));
+                const scoresSnapshot = await getDocs(scoresQuery);
+                scoresSnapshot.forEach(doc => {
+                    batch.delete(doc.ref);
+                });
+
+                await batch.commit();
+                alert("تم حذف بند التقييم ودرجاته بنجاح.");
+                // The page will auto-refresh due to the snapshot listener.
+            } catch (error) {
+                console.error("Error deleting grade item and scores:", error);
+                alert("فشل حذف بند التقييم.");
+            }
+        }
+
+        window.handleScoreChange = async function(event, studentId, gradeItemId, maxScore) {
+            const input = event.target;
+            const newScore = parseFloat(input.value);
+
+            if (isNaN(newScore) || newScore < 0 || newScore > maxScore) {
+                alert(`يرجى إدخال درجة صالحة بين 0 و ${maxScore}.`);
+                input.value = ''; // Clear invalid input
+                // Or find and set the old value if needed
+                return;
+            }
+
+            try {
+                // Check if a score document already exists
+                const scoresQuery = query(collection(db, "scores"),
+                    where("studentId", "==", studentId),
+                    where("gradeItemId", "==", gradeItemId)
+                );
+                const snapshot = await getDocs(scoresQuery);
+
+                if (snapshot.empty) {
+                    // Create new score document
+                    await addDoc(collection(db, "scores"), {
+                        studentId,
+                        gradeItemId,
+                        score: newScore
+                    });
+                } else {
+                    // Update existing score document
+                    const scoreDocRef = snapshot.docs[0].ref;
+                    await updateDoc(scoreDocRef, { score: newScore });
+                }
+
+                input.classList.add('bg-green-100');
+                setTimeout(() => {
+                    input.classList.remove('bg-green-100');
+                    input.classList.add('bg-gray-50');
+                }, 1500);
+
+            } catch (error) {
+                console.error("Error saving score:", error);
+                alert("فشل حفظ الدرجة.");
+                input.classList.add('bg-red-100');
+            }
+        }
+
         // --- Attendance Functions ---
         window.openAttendanceSessionModal = function(groupId) {
             const group = appData.groups.find(g => g.id === groupId);
@@ -2121,24 +2140,18 @@
                 .filter(a => a.studentId === studentId)
                 .sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
 
-            // Fetch exam results asynchronously from all of the student's groups
-            const studentExams = appData.exams.filter(e => studentGroupIds.includes(e.groupId));
-            const examResults = [];
-            for (const exam of studentExams) {
-                try {
-                    const resultRef = doc(db, `exams/${exam.id}/results`, studentId);
-                    const resultSnap = await getDoc(resultRef);
-                    if (resultSnap.exists()) {
-                        examResults.push({
-                            examName: exam.name,
-                            maxScore: Number(exam.maxScore) || 0,
-                            score: Number(resultSnap.data().score) || 0
-                        });
-                    }
-                } catch (error) {
-                    console.error(`Could not fetch results for exam ${exam.id}`, error);
-                }
-            }
+            // Fetch scores from the new gradebook system
+            const studentScores = appData.scores.filter(s => s.studentId === studentId);
+            const gradeResults = studentScores.map(score => {
+                const gradeItem = appData.gradeItems.find(item => item.id === score.gradeItemId);
+                if (!gradeItem) return null; // Skip if grade item is not found
+                return {
+                    itemName: gradeItem.name,
+                    maxScore: gradeItem.maxScore,
+                    score: score.score
+                };
+            }).filter(Boolean); // Filter out any nulls
+
 
             // Build HTML for each section
             const paymentsHtml = payments.length > 0 ? payments.map(p => `
@@ -2165,12 +2178,12 @@
                 `;
             }).join('') : '<tr><td colspan="2" class="text-center py-2 text-gray-500">لا يوجد سجل حضور</td></tr>';
 
-            const examResultsHtml = examResults.length > 0 ? examResults.map(r => `
+            const gradeResultsHtml = gradeResults.length > 0 ? gradeResults.map(r => `
                 <tr class="border-b">
-                    <td class="py-2 px-4">${r.examName}</td>
+                    <td class="py-2 px-4">${r.itemName}</td>
                     <td class="py-2 px-4 font-mono">${r.score} / ${r.maxScore}</td>
                 </tr>
-            `).join('') : '<tr><td colspan="2" class="text-center py-2 text-gray-500">لا توجد نتائج امتحانات مسجلة</td></tr>';
+            `).join('') : '<tr><td colspan="2" class="text-center py-2 text-gray-500">لا توجد درجات مسجلة</td></tr>';
 
             // Assemble the final modal content
             const modalContent = `
@@ -2203,11 +2216,11 @@
                             </div>
                         </div>
                         <div>
-                            <h3 class="text-xl font-bold mb-2">نتائج الامتحانات</h3>
+                            <h3 class="text-xl font-bold mb-2">سجل الدرجات</h3>
                             <div class="overflow-auto max-h-64 border rounded-lg">
                                 <table class="min-w-full bg-white">
-                                    <thead class="bg-gray-800 text-white sticky top-0"><tr><th class="py-2 px-4 text-right">الامتحان</th><th class="py-2 px-4 text-right">الدرجة</th></tr></thead>
-                                    <tbody>${examResultsHtml}</tbody>
+                                    <thead class="bg-gray-800 text-white sticky top-0"><tr><th class="py-2 px-4 text-right">بند التقييم</th><th class="py-2 px-4 text-right">الدرجة</th></tr></thead>
+                                    <tbody>${gradeResultsHtml}</tbody>
                                 </table>
                             </div>
                         </div>
