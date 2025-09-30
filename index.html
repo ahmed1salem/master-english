@@ -197,7 +197,7 @@
                 <li class="admin-only teacher-only"><a href="#" onclick="showPage('groups')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-layer-group fa-fw mx-2"></i> <span data-translate="nav_groups">المجموعات</span></a></li>
                 <li class="admin-only teacher-only"><a href="#" onclick="showPage('grades')" class="flex items-center p-2 rounded-lg hover:bg-gray-700"><i class="fas fa-book-reader fa-fw mx-2"></i> <span data-translate="nav_grades">الدرجات</span></a></li>
             </ul>
-             
+            
             <div>
                 <a href="#" onclick="handleLogout()" class="flex items-center p-2 rounded-lg text-red-400 hover:bg-red-700 hover:text-white"><i class="fas fa-sign-out-alt fa-fw mx-2"></i> <span data-translate="logout">تسجيل الخروج</span></a>
             </div>
@@ -233,9 +233,10 @@
 
     <script type="module">
         // Import Firebase modules
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, collection, getDocs, onSnapshot, updateDoc, where, query, addDoc, deleteDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+        // CORRECTED: Updated to a stable Firebase version (e.g., 10.12.2) instead of a non-existent one.
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, getDocs, onSnapshot, updateDoc, where, query, addDoc, deleteDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         //
         // <<<--- Your Firebase Config Goes Here --->>>
@@ -244,7 +245,7 @@
             apiKey: "AIzaSyBWqms4OWqtLvWCXZ7y7wysqUcj-mpd6fI",
             authDomain: "master-english-center.firebaseapp.com",
             projectId: "master-english-center",
-            storageBucket: "master-english-center.firebasestorage.app",
+            storageBucket: "master-english-center.appspot.com",
             messagingSenderId: "945826515359",
             appId: "1:945826515359:web:57f21b2345dcc56ff2d5aa"
         };
@@ -651,7 +652,7 @@
                     ['students', 'gradeItems', 'scores', 'attendance', 'payments'].forEach(col => appData[col] = []);
 
                     if (teacherGroupIds.length > 0) {
-                        const CHUNK_SIZE = 10;
+                        const CHUNK_SIZE = 10; // Firestore limitation for array-contains-any
                         const groupChunks = [];
                         for (let i = 0; i < teacherGroupIds.length; i += CHUNK_SIZE) {
                             groupChunks.push(teacherGroupIds.slice(i, i + CHUNK_SIZE));
@@ -865,7 +866,7 @@
             const resultsContainer = document.getElementById('report-results-container');
 
             if (!groupId) {
-                alert("يرجى اختيار مجموعة أولاً.");
+                showAlertModal("يرجى اختيار مجموعة أولاً.", 'error');
                 return;
             }
 
@@ -934,7 +935,7 @@
                             <h3 class="text-xl font-bold">تقرير الحالة المالية لـ: ${group.name}</h3>
                             <p class="text-gray-600">عن شهر: ${monthName} ${year}</p>
                         </div>
-                        <button onclick="printReport('monthly-report-printable', `تقرير مالي - ${group.name} - ${monthName} ${year}`)" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 no-print"><i class="fas fa-print mr-2"></i> طباعة</button>
+                        <button onclick="printReport('monthly-report-printable', \`تقرير مالي - ${group.name} - ${monthName} ${year}\`)" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 no-print"><i class="fas fa-print mr-2"></i> طباعة</button>
                     </div>
                     <div class="overflow-x-auto border rounded-lg">
                         <table class="min-w-full text-sm">
@@ -1451,7 +1452,7 @@
             const studentId = document.getElementById('payment-student').value;
             const student = appData.students.find(s => s.id === studentId);
             if (!student) {
-                alert("حدث خطأ: لم يتم العثور على الطالب.");
+                showAlertModal("حدث خطأ: لم يتم العثور على الطالب.", 'error');
                 return;
             }
             const groupIds = Array.isArray(student?.groupIds) ? student.groupIds : (student?.groupId ? [student.groupId] : []);
@@ -1460,13 +1461,13 @@
             if (groupIds.length > 1) {
                 groupIdForPayment = document.getElementById('payment-group-selector').value;
                 if (!groupIdForPayment) {
-                    alert("يرجى تحديد المجموعة التي يتم الدفع لها.");
+                    showAlertModal("يرجى تحديد المجموعة التي يتم الدفع لها.", 'error');
                     return;
                 }
             } else if (groupIds.length === 1) {
                 groupIdForPayment = groupIds[0];
             } else {
-                alert("لا يمكن تسجيل دفعة لطالب غير مسجل في أي مجموعة.");
+                showAlertModal("لا يمكن تسجيل دفعة لطالب غير مسجل في أي مجموعة.", 'error');
                 return;
             }
 
@@ -1483,17 +1484,17 @@
             };
 
             if (!paymentData.studentId || !paymentData.amount || !paymentData.paymentDate) {
-                alert("يرجى ملء جميع الحقول المطلوبة.");
+                showAlertModal("يرجى ملء جميع الحقول المطلوبة.", 'error');
                 return;
             }
 
             try {
                 await addDoc(collection(db, "payments"), paymentData);
-                alert('تم تسجيل الدفعة بنجاح.');
+                showAlertModal('تم تسجيل الدفعة بنجاح.', 'success');
                 closeModal('payment-modal');
             } catch (error) {
                 console.error("Error saving payment:", error);
-                alert("فشل تسجيل الدفعة.");
+                showAlertModal("فشل تسجيل الدفعة.", 'error');
             }
         }
 
@@ -1616,15 +1617,16 @@
             tableBody.innerHTML = tableRows;
         }
 
-        window.deletePayment = async function(paymentId) {
-            if (!confirm("هل أنت متأكد من حذف هذه الدفعة؟ لا يمكن التراجع عن هذا الإجراء.")) return;
-            try {
-                await deleteDoc(doc(db, "payments", paymentId));
-                alert("تم حذف الدفعة بنجاح.");
-            } catch (error) {
-                console.error("Error deleting payment:", error);
-                alert("فشل حذف الدفعة.");
-            }
+        window.deletePayment = function(paymentId) {
+            showConfirmationModal("هل أنت متأكد من حذف هذه الدفعة؟ لا يمكن التراجع عن هذا الإجراء.", async () => {
+                try {
+                    await deleteDoc(doc(db, "payments", paymentId));
+                    showAlertModal("تم حذف الدفعة بنجاح.", 'success');
+                } catch (error) {
+                    console.error("Error deleting payment:", error);
+                    showAlertModal("فشل حذف الدفعة.", 'error');
+                }
+            });
         }
 
         // --- ADMIN-SPECIFIC FUNCTIONS ---
@@ -1675,44 +1677,47 @@
         }
 
         window.approveUser = async function(userId, name) {
-            if (!confirm("هل أنت متأكد من الموافقة على هذا الحساب كـ 'مدرس'؟ سيتم إنشاء سجل له في جدول المدرسين.")) return;
-            
-            const userDocRef = doc(db, "users", userId);
-            const teacherCollectionRef = collection(db, "teachers");
+            const message = "هل أنت متأكد من الموافقة على هذا الحساب كـ 'مدرس'؟ سيتم إنشاء سجل له في جدول المدرسين.";
+            showConfirmationModal(message, async () => {
+                const userDocRef = doc(db, "users", userId);
+                const teacherCollectionRef = collection(db, "teachers");
 
-            try {
-                const batch = writeBatch(db);
-                batch.update(userDocRef, { role: 'teacher' });
-                
-                const newTeacherRef = doc(teacherCollectionRef);
-                batch.set(newTeacherRef, {
-                    name: name,
-                    userId: userId,
-                    subject: "Not specified",
-                    phone: ""
-                });
+                try {
+                    const batch = writeBatch(db);
+                    batch.update(userDocRef, { role: 'teacher' });
+                    
+                    const newTeacherRef = doc(teacherCollectionRef);
+                    batch.set(newTeacherRef, {
+                        name: name,
+                        userId: userId,
+                        subject: "Not specified",
+                        phone: ""
+                    });
 
-                await batch.commit();
-                alert("تمت الموافقة على الحساب وإنشاء سجل المدرس بنجاح.");
-            } catch (error) {
-                console.error("Error approving user:", error);
-                alert("حدث خطأ أثناء الموافقة.");
-            }
+                    await batch.commit();
+                    showAlertModal("تمت الموافقة على الحساب وإنشاء سجل المدرس بنجاح.", 'success');
+                } catch (error) {
+                    console.error("Error approving user:", error);
+                    showAlertModal("حدث خطأ أثناء الموافقة.", 'error');
+                }
+            });
         }
         
         window.rejectUser = async function(userId) {
-            if (!confirm("هل أنت متأكد من رفض وحذف هذا الطلب؟ سيتم حذف بيانات المستخدم من قاعدة البيانات فقط.")) return;
-            const userDocRef = doc(db, "users", userId);
-            try {
-                await deleteDoc(userDocRef);
-                alert("تم رفض الطلب وحذفه.");
-            } catch (error) {
-                console.error("Error rejecting user:", error);
-                alert("حدث خطأ أثناء الرفض.");
-            }
+            const message = "هل أنت متأكد من رفض وحذف هذا الطلب؟ سيتم حذف بيانات المستخدم من قاعدة البيانات فقط.";
+            showConfirmationModal(message, async () => {
+                const userDocRef = doc(db, "users", userId);
+                try {
+                    await deleteDoc(userDocRef);
+                    showAlertModal("تم رفض الطلب وحذفه.", 'success');
+                } catch (error) {
+                    console.error("Error rejecting user:", error);
+                    showAlertModal("حدث خطأ أثناء الرفض.", 'error');
+                }
+            });
         }
         
-        // --- CRUD Modals & Functions ---
+        // --- MODAL & CRUD FUNCTIONS (IMPROVED) ---
 
         function renderModal(id, content, size = 'max-w-lg') {
             closeModal(id); // Close if already open
@@ -1733,6 +1738,56 @@
             const modal = document.getElementById(id);
             if(modal) modal.remove();
         }
+
+        window.showAlertModal = function(message, type = 'info') {
+            const modalId = 'alert-modal';
+            const icons = {
+                info: '<i class="fas fa-info-circle text-4xl text-blue-500 mb-4"></i>',
+                success: '<i class="fas fa-check-circle text-4xl text-green-500 mb-4"></i>',
+                error: '<i class="fas fa-times-circle text-4xl text-red-500 mb-4"></i>',
+            };
+            const titles = {
+                info: 'معلومة',
+                success: 'نجاح',
+                error: 'خطأ',
+            }
+
+            const modalContent = `
+                <div class="text-center">
+                    ${icons[type] || icons['info']}
+                    <h3 class="text-lg font-bold mb-2">${titles[type] || titles['info']}</h3>
+                    <p class="text-gray-600 mb-6">${message}</p>
+                    <div class="flex justify-center">
+                        <button onclick="closeModal('${modalId}')" class="bg-blue-600 text-white px-8 py-2 rounded-lg hover:bg-blue-700">حسنًا</button>
+                    </div>
+                </div>
+            `;
+            renderModal(modalId, modalContent, 'max-w-md');
+        }
+
+        window.showConfirmationModal = function(message, onConfirm) {
+            const modalId = 'confirmation-modal';
+            const modalContent = `
+                <div class="text-center">
+                    <i class="fas fa-exclamation-triangle text-4xl text-amber-500 mb-4"></i>
+                    <h3 class="text-lg font-bold mb-2">تأكيد الإجراء</h3>
+                    <p class="text-gray-600 mb-6">${message}</p>
+                    <div class="flex justify-center space-x-4 space-x-reverse">
+                        <button id="confirm-cancel-btn" class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">إلغاء</button>
+                        <button id="confirm-action-btn" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">تأكيد</button>
+                    </div>
+                </div>
+            `;
+            renderModal(modalId, modalContent, 'max-w-md');
+
+            document.getElementById('confirm-action-btn').onclick = () => {
+                closeModal(modalId);
+                if (onConfirm) onConfirm();
+            };
+            document.getElementById('confirm-cancel-btn').onclick = () => {
+                closeModal(modalId);
+            };
+        }
         
         // --- Student CRUD ---
         window.generateAndSetUniqueStudentCode = function() {
@@ -1749,7 +1804,7 @@
                 attempts++;
                 // Failsafe to prevent infinite loops in a very unlikely scenario
                 if (attempts > 1000) {
-                    alert("فشل إنشاء كود فريد تلقائيًا. يرجى إدخال كود يدويًا.");
+                    showAlertModal("فشل إنشاء كود فريد تلقائيًا. يرجى إدخال كود يدويًا.", 'error');
                     return;
                 }
             } while (existingCodes.has(newCode));
@@ -1810,7 +1865,7 @@
             const selectedGroupIds = Array.from(document.querySelectorAll('input[name="student-group-checkbox"]:checked')).map(el => el.value);
 
             if (selectedGroupIds.length === 0) {
-                alert("يجب تسجيل الطالب في مجموعة واحدة على الأقل.");
+                showAlertModal("يجب تسجيل الطالب في مجموعة واحدة على الأقل.", 'error');
                 return;
             }
 
@@ -1826,27 +1881,28 @@
             try {
                 if(studentId) {
                     await updateDoc(doc(db, "students", studentId), studentData);
-                    alert('تم تحديث بيانات الطالب بنجاح.');
+                    showAlertModal('تم تحديث بيانات الطالب بنجاح.', 'success');
                 } else {
                     await addDoc(collection(db, "students"), studentData);
-                    alert('تمت إضافة الطالب بنجاح.');
+                    showAlertModal('تمت إضافة الطالب بنجاح.', 'success');
                 }
                 closeModal('student-modal');
             } catch (error) {
                 console.error("Error saving student:", error);
-                alert("فشل حفظ بيانات الطالب.");
+                showAlertModal("فشل حفظ بيانات الطالب.", 'error');
             }
         }
         
         window.deleteStudent = async function(studentId) {
-            if (!confirm("هل أنت متأكد من حذف هذا الطالب؟ لا يمكن التراجع عن هذا الإجراء.")) return;
-            try {
-                await deleteDoc(doc(db, "students", studentId));
-                alert("تم حذف الطالب بنجاح.");
-            } catch (error) {
-                console.error("Error deleting student:", error);
-                alert("فشل حذف الطالب.");
-            }
+            showConfirmationModal("هل أنت متأكد من حذف هذا الطالب؟ لا يمكن التراجع عن هذا الإجراء.", async () => {
+                 try {
+                    await deleteDoc(doc(db, "students", studentId));
+                    showAlertModal("تم حذف الطالب بنجاح.", 'success');
+                } catch (error) {
+                    console.error("Error deleting student:", error);
+                    showAlertModal("فشل حذف الطالب.", 'error');
+                }
+            });
         }
 
         // --- Teacher CRUD ---
@@ -1890,28 +1946,29 @@
                         await updateDoc(doc(db, "users", teacherDoc.userId), { name: teacherData.name });
                     }
                     await updateDoc(doc(db, "teachers", teacherId), teacherData);
-                    alert('تم تحديث بيانات المدرس بنجاح.');
+                    showAlertModal('تم تحديث بيانات المدرس بنجاح.', 'success');
                 } else {
                     // This is for admins creating a teacher profile without a user account yet.
                     await addDoc(collection(db, "teachers"), teacherData);
-                    alert('تمت إضافة المدرس بنجاح. ملاحظة: لم يتم إنشاء حساب مستخدم لهذا المدرس.');
+                    showAlertModal('تمت إضافة المدرس بنجاح. ملاحظة: لم يتم إنشاء حساب مستخدم لهذا المدرس.', 'info');
                 }
                 closeModal('teacher-modal');
             } catch (error) {
                 console.error("Error saving teacher:", error);
-                alert("فشل حفظ بيانات المدرس.");
+                showAlertModal("فشل حفظ بيانات المدرس.", 'error');
             }
         }
 
         window.deleteTeacher = async function(teacherId) {
-            if (!confirm("هل أنت متأكد من حذف هذا المدرس؟ لن يتم حذف حساب المستخدم المرتبط به.")) return;
-            try {
-                await deleteDoc(doc(db, "teachers", teacherId));
-                alert("تم حذف المدرس بنجاح.");
-            } catch (error) {
-                console.error("Error deleting teacher:", error);
-                alert("فشل حذف المدرس.");
-            }
+            showConfirmationModal("هل أنت متأكد من حذف هذا المدرس؟ لن يتم حذف حساب المستخدم المرتبط به.", async () => {
+                try {
+                    await deleteDoc(doc(db, "teachers", teacherId));
+                    showAlertModal("تم حذف المدرس بنجاح.", 'success');
+                } catch (error) {
+                    console.error("Error deleting teacher:", error);
+                    showAlertModal("فشل حذف المدرس.", 'error');
+                }
+            });
         }
 
         // --- Group CRUD ---
@@ -1981,29 +2038,30 @@
             try {
                 if(groupId) {
                     await updateDoc(doc(db, "groups", groupId), groupData);
-                    alert('تم تحديث بيانات المجموعة بنجاح.');
+                    showAlertModal('تم تحديث بيانات المجموعة بنجاح.', 'success');
                 } else {
                     await addDoc(collection(db, "groups"), groupData);
-                    alert('تمت إضافة المجموعة بنجاح.');
+                    showAlertModal('تمت إضافة المجموعة بنجاح.', 'success');
                 }
                 closeModal('group-modal');
             } catch (error) {
                 console.error("Error saving group:", error);
-                alert("فشل حفظ بيانات المجموعة.");
+                showAlertModal("فشل حفظ بيانات المجموعة.", 'error');
             }
         }
 
         window.deleteGroup = async function(groupId) {
-            if (!confirm("هل أنت متأكد من حذف هذه المجموعة؟ سيتم إلغاء تسجيل كل الطلاب المرتبطين بها.")) return;
-            try {
-                // This is a simplified delete. A more robust solution would be a batch write
-                // to also un-enroll students or a cloud function to handle this.
-                await deleteDoc(doc(db, "groups", groupId));
-                alert("تم حذف المجموعة بنجاح.");
-            } catch (error) {
-                console.error("Error deleting group:", error);
-                alert("فشل حذف المجموعة.");
-            }
+            showConfirmationModal("هل أنت متأكد من حذف هذه المجموعة؟ سيتم إلغاء تسجيل كل الطلاب المرتبطين بها.", async () => {
+                try {
+                    // This is a simplified delete. A more robust solution would be a batch write
+                    // to also un-enroll students or a cloud function to handle this.
+                    await deleteDoc(doc(db, "groups", groupId));
+                    showAlertModal("تم حذف المجموعة بنجاح.", 'success');
+                } catch (error) {
+                    console.error("Error deleting group:", error);
+                    showAlertModal("فشل حذف المجموعة.", 'error');
+                }
+            });
         }
 
         function renderGradesPage() {
@@ -2064,7 +2122,7 @@
             const maxScore = parseFloat(document.getElementById('grade-item-max-score').value);
 
             if (!name || isNaN(maxScore) || maxScore <= 0) {
-                alert("يرجى إدخال اسم ودرجة قصوى صالحة.");
+                showAlertModal("يرجى إدخال اسم ودرجة قصوى صالحة.", 'error');
                 return;
             }
 
@@ -2075,39 +2133,40 @@
                     maxScore,
                     createdAt: serverTimestamp()
                 });
-                alert('تمت إضافة بند التقييم بنجاح.');
+                showAlertModal('تمت إضافة بند التقييم بنجاح.', 'success');
                 closeModal('grade-item-modal');
                 renderGradebookForGroup(groupId); // Refresh the gradebook view
             } catch (error) {
                 console.error("Error saving grade item:", error);
-                alert("فشل حفظ بند التقييم.");
+                showAlertModal("فشل حفظ بند التقييم.", 'error');
             }
         }
 
         window.deleteGradeItem = async function(gradeItemId) {
-            if (!confirm("هل أنت متأكد من حذف بند التقييم هذا؟ سيتم حذف جميع الدرجات المرتبطة به بشكل دائم.")) return;
+            const message = "هل أنت متأكد من حذف بند التقييم هذا؟ سيتم حذف جميع الدرجات المرتبطة به بشكل دائم.";
+            showConfirmationModal(message, async () => {
+                try {
+                    const batch = writeBatch(db);
 
-            try {
-                const batch = writeBatch(db);
+                    // Delete the grade item itself
+                    const itemRef = doc(db, "gradeItems", gradeItemId);
+                    batch.delete(itemRef);
 
-                // Delete the grade item itself
-                const itemRef = doc(db, "gradeItems", gradeItemId);
-                batch.delete(itemRef);
+                    // Find and delete all scores associated with this grade item
+                    const scoresQuery = query(collection(db, "scores"), where("gradeItemId", "==", gradeItemId));
+                    const scoresSnapshot = await getDocs(scoresQuery);
+                    scoresSnapshot.forEach(doc => {
+                        batch.delete(doc.ref);
+                    });
 
-                // Find and delete all scores associated with this grade item
-                const scoresQuery = query(collection(db, "scores"), where("gradeItemId", "==", gradeItemId));
-                const scoresSnapshot = await getDocs(scoresQuery);
-                scoresSnapshot.forEach(doc => {
-                    batch.delete(doc.ref);
-                });
-
-                await batch.commit();
-                alert("تم حذف بند التقييم ودرجاته بنجاح.");
-                // The page will auto-refresh due to the snapshot listener.
-            } catch (error) {
-                console.error("Error deleting grade item and scores:", error);
-                alert("فشل حذف بند التقييم.");
-            }
+                    await batch.commit();
+                    showAlertModal("تم حذف بند التقييم ودرجاته بنجاح.", 'success');
+                    // The page will auto-refresh due to the snapshot listener.
+                } catch (error) {
+                    console.error("Error deleting grade item and scores:", error);
+                    showAlertModal("فشل حذف بند التقييم.", 'error');
+                }
+            });
         }
 
         window.handleScoreChange = async function(event, studentId, gradeItemId, maxScore) {
@@ -2115,9 +2174,8 @@
             const newScore = parseFloat(input.value);
 
             if (isNaN(newScore) || newScore < 0 || newScore > maxScore) {
-                alert(`يرجى إدخال درجة صالحة بين 0 و ${maxScore}.`);
+                showAlertModal(`يرجى إدخال درجة صالحة بين 0 و ${maxScore}.`, 'error');
                 input.value = ''; // Clear invalid input
-                // Or find and set the old value if needed
                 return;
             }
 
@@ -2134,7 +2192,8 @@
                     await addDoc(collection(db, "scores"), {
                         studentId,
                         gradeItemId,
-                        score: newScore
+                        score: newScore,
+                        groupId: appData.gradeItems.find(i => i.id === gradeItemId).groupId // Add groupId for teacher filtering
                     });
                 } else {
                     // Update existing score document
@@ -2150,7 +2209,7 @@
 
             } catch (error) {
                 console.error("Error saving score:", error);
-                alert("فشل حفظ الدرجة.");
+                showAlertModal("فشل حفظ الدرجة.", 'error');
                 input.classList.add('bg-red-100');
             }
         }
@@ -2158,7 +2217,7 @@
         // --- Attendance Functions ---
         window.openAttendanceSessionModal = function(groupId) {
             const group = appData.groups.find(g => g.id === groupId);
-            if (!group) return alert("لم يتم العثور على المجموعة.");
+            if (!group) return showAlertModal("لم يتم العثور على المجموعة.", 'error');
 
             const studentsInGroup = appData.students.filter(s => {
                 const studentGroupIds = Array.isArray(s.groupIds) ? s.groupIds : (s.groupId ? [s.groupId] : []);
@@ -2166,7 +2225,7 @@
             });
 
             if (studentsInGroup.length === 0) {
-                return alert("لا يوجد طلاب مسجلون في هذه المجموعة.");
+                return showAlertModal("لا يوجد طلاب مسجلون في هذه المجموعة.", 'info');
             }
 
             const studentRows = studentsInGroup.map(student => `
@@ -2226,7 +2285,7 @@
             });
 
             if (Object.keys(attendanceData).length === 0) {
-                alert("لا يوجد طلاب لحفظ حالتهم.");
+                showAlertModal("لا يوجد طلاب لحفظ حالتهم.", 'info');
                 return;
             }
 
@@ -2248,7 +2307,7 @@
 
             try {
                 await batch.commit();
-                alert(`تم حفظ جلسة الحضور بنجاح!`);
+                showAlertModal(`تم حفظ جلسة الحضور بنجاح!`, 'success');
                 closeModal('attendance-session-modal');
                 // Optionally refresh the session history if it's visible
                 if (document.getElementById('session-history-container').innerHTML !== '') {
@@ -2256,7 +2315,7 @@
                 }
             } catch (error) {
                 console.error("Error saving attendance session:", error);
-                alert("فشل حفظ جلسة الحضور.");
+                showAlertModal("فشل حفظ جلسة الحضور.", 'error');
             }
         }
 
@@ -2265,10 +2324,8 @@
             const group = appData.groups.find(g => g.id === groupId);
             container.innerHTML = `<div class="text-center py-4">جاري تحميل سجل الجلسات لمجموعة: ${group?.name || ''}...</div>`;
 
-            // Fetch all attendance records for this group
-            const attendanceQuery = query(collection(db, "attendance"), where("groupId", "==", groupId));
-            const snapshot = await getDocs(attendanceQuery);
-            const records = snapshot.docs.map(d => d.data());
+            // Use local data instead of a new fetch
+            const records = appData.attendance.filter(rec => rec.groupId === groupId);
 
             if (records.length === 0) {
                 container.innerHTML = `<div class="bg-white p-6 rounded-lg shadow-md text-center text-gray-500">لا يوجد سجل جلسات لهذه المجموعة.</div>`;
@@ -2330,7 +2387,7 @@
         window.viewSessionDetails = function(sessionId) {
              const recordsForSession = appData.attendance.filter(a => a.sessionId === sessionId);
              if (recordsForSession.length === 0) {
-                 return alert("لا يمكن العثور على تفاصيل هذه الجلسة.");
+                 return showAlertModal("لا يمكن العثور على تفاصيل هذه الجلسة.", 'error');
              }
 
              const group = appData.groups.find(g => g.id === recordsForSession[0].groupId);
@@ -2354,22 +2411,22 @@
              }).join('');
 
              const modalContent = `
-                <h3 class="text-2xl font-bold mb-2">تفاصيل جلسة الحضور</h3>
-                <p class="text-gray-600 mb-6">المجموعة: ${group?.name || 'N/A'} - ${sessionDate}</p>
-                <div class="max-h-[60vh] overflow-y-auto border rounded-lg">
-                    <table class="min-w-full bg-white">
+                 <h3 class="text-2xl font-bold mb-2">تفاصيل جلسة الحضور</h3>
+                 <p class="text-gray-600 mb-6">المجموعة: ${group?.name || 'N/A'} - ${sessionDate}</p>
+                 <div class="max-h-[60vh] overflow-y-auto border rounded-lg">
+                     <table class="min-w-full bg-white">
                          <thead class="bg-gray-800 text-white sticky top-0">
-                            <tr>
-                                <th class="p-3 text-right">اسم الطالب</th>
-                                <th class="p-3 text-right">الحالة</th>
-                            </tr>
-                        </thead>
-                        <tbody>${detailRows}</tbody>
-                    </table>
-                </div>
-                 <div class="flex justify-end mt-6">
-                    <button type="button" onclick="closeModal('session-details-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إغلاق</button>
-                </div>
+                             <tr>
+                                 <th class="p-3 text-right">اسم الطالب</th>
+                                 <th class="p-3 text-right">الحالة</th>
+                             </tr>
+                         </thead>
+                         <tbody>${detailRows}</tbody>
+                     </table>
+                 </div>
+                  <div class="flex justify-end mt-6">
+                     <button type="button" onclick="closeModal('session-details-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إغلاق</button>
+                 </div>
              `;
              renderModal('session-details-modal', modalContent, 'max-w-xl');
         }
@@ -2378,7 +2435,7 @@
         window.generateStudentReport = async function(studentId) {
             const student = appData.students.find(s => s.id === studentId);
             if (!student) {
-                alert("لم يتم العثور على الطالب.");
+                showAlertModal("لم يتم العثور على الطالب.", 'error');
                 return;
             }
 
@@ -2499,7 +2556,7 @@
                 </div>
                 <div class="flex justify-end space-x-4 space-x-reverse mt-6 no-print">
                     <button type="button" onclick="closeModal('student-report-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إغلاق</button>
-                    <button type="button" onclick="printReport('student-report-content', `تقرير الطالب - ${student.name}`)" class="bg-blue-500 text-white px-6 py-2 rounded-lg">طباعة التقرير</button>
+                    <button type="button" onclick="printReport('student-report-content', \`تقرير الطالب - ${student.name}\`)" class="bg-blue-500 text-white px-6 py-2 rounded-lg">طباعة التقرير</button>
                 </div>
             `;
 
@@ -2549,7 +2606,7 @@
         window.generateInvoice = function(paymentId) {
             const payment = appData.payments.find(p => p.id === paymentId);
             if (!payment) {
-                alert("لم يتم العثور على الدفعة.");
+                showAlertModal("لم يتم العثور على الدفعة.", 'error');
                 return;
             }
 
@@ -2608,7 +2665,7 @@
                 </div>
                 <div class="flex justify-end space-x-4 space-x-reverse mt-6 no-print">
                     <button type="button" onclick="closeModal('invoice-modal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">إغلاق</button>
-                    <button type="button" onclick="printReport('invoice-content', `إيصال - ${student?.name || 'طالب'} - ${payment.id.slice(0, 6)}`)" class="bg-blue-500 text-white px-6 py-2 rounded-lg">طباعة</button>
+                    <button type="button" onclick="printReport('invoice-content', \`إيصال - ${student?.name || 'طالب'} - ${payment.id.slice(0, 6)}\`)" class="bg-blue-500 text-white px-6 py-2 rounded-lg">طباعة</button>
                 </div>
             `;
             renderModal('invoice-modal', modalContent, 'max-w-3xl');
@@ -2682,7 +2739,7 @@
             const resultsContainer = document.getElementById('report-results-container');
 
             if (!groupId) {
-                alert("يرجى اختيار مجموعة أولاً.");
+                showAlertModal("يرجى اختيار مجموعة أولاً.", 'error');
                 return;
             }
 
@@ -2768,7 +2825,7 @@
                             <h3 class="text-xl font-bold">لوحة المتابعة المالية لـ: ${group.name} - ${year}</h3>
                             <p class="text-gray-600">سعر المجموعة الشهري: ${groupPrice} جنيه</p>
                         </div>
-                        <button onclick="printReport('financial-status-printable', `متابعة مالية - ${group.name} - ${year}`)" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 no-print"><i class="fas fa-print mr-2"></i> طباعة</button>
+                        <button onclick="printReport('financial-status-printable', \`متابعة مالية - ${group.name} - ${year}\`)" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 no-print"><i class="fas fa-print mr-2"></i> طباعة</button>
                     </div>
                     <div class="overflow-x-auto border rounded-lg">
                         <table class="min-w-full text-sm">
