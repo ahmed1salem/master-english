@@ -16,6 +16,9 @@
 
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Chart.js for interactive charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     
     <!-- Google Fonts (Cairo for Arabic, Inter for English) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -739,35 +742,284 @@
 
         function renderDashboardPage() {
             const container = document.getElementById('page-content');
-            const today = new Date().toISOString().slice(0, 10);
-            const todayAttendance = appData.attendance.filter(a => a.timestamp?.toDate().toISOString().slice(0, 10) === today).length;
-            const unpaidStudentsCount = getUnpaidStudentsForCurrentMonth().length;
 
+            // New structure for the dashboard
             container.innerHTML = `
                 <div id="dashboard-page" class="page">
-                    <h2 class="text-2xl sm:text-3xl font-bold mb-6">الرئيسية</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <div class="bg-white p-6 rounded-lg shadow-md">
-                            <h3 class="text-lg font-semibold text-gray-600">إجمالي الطلاب</h3>
-                            <p class="text-4xl font-bold mt-2">${appData.students.length}</p>
-                        </div>
-                        <div class="bg-white p-6 rounded-lg shadow-md">
-                            <h3 class="text-lg font-semibold text-gray-600">إجمالي المجموعات</h3>
-                            <p class="text-4xl font-bold mt-2">${appData.groups.length}</p>
-                        </div>
-                        <div class="bg-white p-6 rounded-lg shadow-md">
-                            <h3 class="text-lg font-semibold text-gray-600">الحضور اليوم</h3>
-                            <p class="text-4xl font-bold mt-2">${todayAttendance}</p>
+                    <!-- Page Header -->
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+                        <h2 class="text-2xl sm:text-3xl font-bold text-gray-800">لوحة التحكم الرئيسية</h2>
+                        <div class="text-sm text-gray-500 mt-2 sm:mt-0">
+                            <span>آخر تحديث:</span>
+                            <span id="last-updated-time">${new Date().toLocaleString('ar-EG')}</span>
                         </div>
                     </div>
-                    <div class="mt-6">
-                         <div class="bg-white p-6 rounded-lg shadow-md cursor-pointer hover:bg-red-50" onclick="showUnpaidReport()">
-                            <h3 class="text-lg font-semibold text-gray-600">طلاب لم يسددوا للشهر الحالي</h3>
-                            <p class="text-4xl font-bold mt-2 text-red-600">${unpaidStudentsCount}</p>
+
+                    <!-- Quick Stats Section -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 mb-6">
+                        <div class="bg-white p-5 rounded-xl shadow-md flex items-center gap-4">
+                            <div class="bg-blue-100 text-blue-600 p-3 rounded-full"><i class="fas fa-users fa-lg"></i></div>
+                            <div>
+                                <p class="text-sm text-gray-500">إجمالي الطلاب</p>
+                                <p id="stat-total-students" class="text-2xl font-bold">0</p>
+                            </div>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow-md flex items-center gap-4">
+                            <div class="bg-green-100 text-green-600 p-3 rounded-full"><i class="fas fa-dollar-sign fa-lg"></i></div>
+                            <div>
+                                <p class="text-sm text-gray-500">إيرادات الشهر</p>
+                                <p id="stat-current-month-revenue" class="text-2xl font-bold">0</p>
+                            </div>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow-md flex items-center gap-4">
+                            <div class="bg-yellow-100 text-yellow-600 p-3 rounded-full"><i class="fas fa-user-plus fa-lg"></i></div>
+                            <div>
+                                <p class="text-sm text-gray-500">الطلاب الجدد (الشهر)</p>
+                                <p id="stat-new-students-month" class="text-2xl font-bold">0</p>
+                            </div>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow-md flex items-center gap-4">
+                            <div class="bg-indigo-100 text-indigo-600 p-3 rounded-full"><i class="fas fa-user-check fa-lg"></i></div>
+                            <div>
+                                <p class="text-sm text-gray-500">حضور الشهر</p>
+                                <p id="stat-attendance-rate" class="text-2xl font-bold">0%</p>
+                            </div>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow-md flex items-center gap-4 cursor-pointer hover:bg-red-50" onclick="showUnpaidReport()">
+                            <div class="bg-red-100 text-red-600 p-3 rounded-full"><i class="fas fa-file-invoice-dollar fa-lg"></i></div>
+                            <div>
+                                <p class="text-sm text-gray-500">غير مسدد (الشهر)</p>
+                                <p id="stat-unpaid-students" class="text-2xl font-bold">0</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Section -->
+                    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                        <!-- Main Chart (Monthly Revenue) -->
+                        <div class="lg:col-span-3 bg-white p-6 rounded-xl shadow-md">
+                            <h3 class="text-lg font-bold text-gray-700 mb-4">نظرة عامة على الإيرادات الشهرية</h3>
+                            <div class="h-80">
+                                <canvas id="monthly-revenue-chart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Side Chart (Group Revenue) -->
+                        <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-md">
+                            <h3 class="text-lg font-bold text-gray-700 mb-4">توزيع الإيرادات على المجموعات</h3>
+                            <div class="h-80">
+                                <canvas id="group-revenue-chart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
+
+            // We will call the functions to update stats and render charts here later.
+            updateDashboardAnalytics();
+        }
+
+        // --- DASHBOARD ANALYTICS ---
+
+        // Global variables to hold chart instances
+        let monthlyRevenueChartInstance = null;
+        let groupRevenueChartInstance = null;
+
+        function updateDashboardAnalytics() {
+            // This function will be called whenever the dashboard is shown or data is updated.
+            // It ensures that all stats and charts are reflecting the latest data.
+
+            // Ensure data is available before proceeding
+            if (!appData || !appData.payments || !appData.students || !appData.groups) {
+                console.warn("Dashboard analytics update skipped: Data not ready.");
+                return;
+            }
+
+            const today = new Date();
+            const currentYear = today.getFullYear();
+            const currentMonth = today.getMonth() + 1;
+
+            // --- 1. Calculate Quick Stats ---
+
+            const totalStudents = appData.students.length;
+
+            const currentMonthRevenue = appData.payments
+                .filter(p => p.paymentForYear === currentYear && p.paymentForMonth === currentMonth)
+                .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+            // Assumes student documents have a `createdAt` timestamp field
+            const newStudentsThisMonth = appData.students.filter(s => {
+                if (s.createdAt && s.createdAt.toDate) {
+                    const createdAtDate = s.createdAt.toDate();
+                    return createdAtDate.getFullYear() === currentYear && (createdAtDate.getMonth() + 1) === currentMonth;
+                }
+                return false;
+            }).length;
+
+            const unpaidStudentsCount = getUnpaidStudentsForCurrentMonth().length;
+
+            const monthlyAttendanceRecords = appData.attendance.filter(a => {
+                if (a.timestamp && a.timestamp.toDate) {
+                    const recordDate = a.timestamp.toDate();
+                    return recordDate.getFullYear() === currentYear && (recordDate.getMonth() + 1) === currentMonth;
+                }
+                return false;
+            });
+
+            const attendedCount = monthlyAttendanceRecords.filter(a => a.status === 'present' || a.status === 'late').length;
+            const totalMonthlyRecords = monthlyAttendanceRecords.length;
+            const attendanceRate = totalMonthlyRecords > 0 ? (attendedCount / totalMonthlyRecords) * 100 : 0;
+
+            // --- 2. Update Quick Stats UI ---
+            document.getElementById('stat-total-students').textContent = totalStudents;
+            document.getElementById('stat-current-month-revenue').textContent = `${currentMonthRevenue.toFixed(0)}`;
+            document.getElementById('stat-new-students-month').textContent = newStudentsThisMonth;
+            document.getElementById('stat-unpaid-students').textContent = unpaidStudentsCount;
+            document.getElementById('stat-attendance-rate').textContent = `${attendanceRate.toFixed(0)}%`;
+            document.getElementById('last-updated-time').textContent = today.toLocaleString('ar-EG');
+
+
+            // --- 3. Prepare Data and Render Charts ---
+
+            // Monthly Revenue Data for the last 12 months
+            const monthlyRevenueMap = new Map();
+            const monthLabels = [];
+            const now = new Date();
+
+            for (let i = 11; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const year = d.getFullYear();
+                const month = d.getMonth() + 1;
+                const label = d.toLocaleString('ar-EG', { month: 'short', year: 'numeric' });
+                monthLabels.push(label);
+                monthlyRevenueMap.set(`${year}-${month}`, 0);
+            }
+
+            appData.payments.forEach(p => {
+                const key = `${p.paymentForYear}-${p.paymentForMonth}`;
+                if (monthlyRevenueMap.has(key)) {
+                    monthlyRevenueMap.set(key, monthlyRevenueMap.get(key) + (Number(p.amount) || 0));
+                }
+            });
+            renderMonthlyRevenueChart(monthLabels, Array.from(monthlyRevenueMap.values()));
+
+
+            // Group Revenue Data
+            const groupRevenue = {};
+            appData.payments.forEach(p => {
+                if (p.groupId && (Number(p.amount) || 0) > 0) {
+                    groupRevenue[p.groupId] = (groupRevenue[p.groupId] || 0) + (Number(p.amount) || 0);
+                }
+            });
+
+            const groupLabels = Object.keys(groupRevenue).map(groupId => {
+                const group = appData.groups.find(g => g.id === groupId);
+                return group ? group.name : 'مجموعة محذوفة';
+            });
+            renderGroupRevenueChart(groupLabels, Object.values(groupRevenue));
+        }
+
+        function renderMonthlyRevenueChart(labels, data) {
+            const ctx = document.getElementById('monthly-revenue-chart');
+            if (!ctx) return;
+
+            if (monthlyRevenueChartInstance) {
+                monthlyRevenueChartInstance.destroy();
+            }
+
+            monthlyRevenueChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'الإيرادات الشهرية',
+                        data: data,
+                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1,
+                        borderRadius: 5,
+                        barThickness: 'flex',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { callback: value => value + ' ج.م' } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            rtl: true,
+                            callbacks: {
+                                label: context => `الإيرادات: ${context.formattedValue} ج.م`
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderGroupRevenueChart(labels, data) {
+            const ctx = document.getElementById('group-revenue-chart');
+            if (!ctx) return;
+
+            if (groupRevenueChartInstance) {
+                groupRevenueChartInstance.destroy();
+            }
+
+            // If there's no data, show a message instead of an empty chart
+            if (data.length === 0) {
+                ctx.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-gray-500">لا توجد بيانات إيرادات لعرضها.</div>';
+                return;
+            }
+
+            groupRevenueChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.8)', 'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 206, 86, 0.8)', 'rgba(75, 192, 192, 0.8)',
+                            'rgba(153, 102, 255, 0.8)', 'rgba(255, 159, 64, 0.8)'
+                        ],
+                        borderColor: '#fff',
+                        borderWidth: 2,
+                        hoverOffset: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                font: {
+                                    family: "'Cairo', sans-serif"
+                                }
+                            }
+                        },
+                        tooltip: {
+                             rtl: true,
+                             callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) { label += ': '; }
+                                    if (context.parsed !== null) {
+                                        label += context.formattedValue + ' ج.م';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         function getUnpaidStudentsForCurrentMonth() {
@@ -3137,6 +3389,9 @@
                 </div>
             `;
         }
+
+        // Expose functions for verification script
+        window.renderDashboardPage = renderDashboardPage;
 
     </script>
 </body>
